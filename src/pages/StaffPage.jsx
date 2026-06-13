@@ -5,6 +5,8 @@ import {
   createStaffDraftOrder,
   getStaffToken,
   getStaffMe,
+  listStaffAudit,
+  listStaffPermissionConfig,
   listStaffUsers,
   listStaffOrders,
   saveStaffToken,
@@ -15,6 +17,8 @@ import {
 } from "../lib/staffApi";
 
 const STAFF_ROLES = ["viewer", "operator", "manager", "admin"];
+const EMPTY_PERMISSION_OVERRIDES = { allow: [], deny: [] };
+const FALLBACK_PERMISSION_CONFIG = { roles: STAFF_ROLES, permissions: [], rolePermissions: {} };
 
 const EMPTY_ADDRESS = {
   firstName: "",
@@ -40,6 +44,46 @@ function moneyLabel(value) {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return "";
   return new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD" }).format(amount);
+}
+
+function hasStaffPermission(staff, permission) {
+  return (staff?.effectivePermissions || []).includes(permission);
+}
+
+function roleHasPermission(permissionConfig, role, permission) {
+  return (permissionConfig.rolePermissions?.[role] || []).includes(permission);
+}
+
+function normalizeOverrides(overrides = EMPTY_PERMISSION_OVERRIDES) {
+  return {
+    allow: Array.isArray(overrides.allow) ? overrides.allow : [],
+    deny: Array.isArray(overrides.deny) ? overrides.deny : []
+  };
+}
+
+function hasDraftPermission(draft, permissionConfig, permission) {
+  const overrides = normalizeOverrides(draft.permissionOverrides);
+  if (overrides.deny.includes(permission)) return false;
+  if (overrides.allow.includes(permission)) return true;
+  return roleHasPermission(permissionConfig, draft.role, permission);
+}
+
+function toggleDraftPermission(draft, permissionConfig, permission) {
+  const overrides = normalizeOverrides(draft.permissionOverrides);
+  const allow = overrides.allow.filter((item) => item !== permission);
+  const deny = overrides.deny.filter((item) => item !== permission);
+  const nextChecked = !hasDraftPermission(draft, permissionConfig, permission);
+  const baseChecked = roleHasPermission(permissionConfig, draft.role, permission);
+  if (nextChecked !== baseChecked) {
+    (nextChecked ? allow : deny).push(permission);
+  }
+  return {
+    ...draft,
+    permissionOverrides: {
+      allow: [...new Set(allow)].sort(),
+      deny: [...new Set(deny)].sort()
+    }
+  };
 }
 
 function LoginPanel({ onLogin }) {
