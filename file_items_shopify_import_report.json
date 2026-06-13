@@ -1,0 +1,20 @@
+{
+  "input": "file_items.csv",
+  "output": "file_items_shopify_import.csv",
+  "inputRows": 22497,
+  "outputRows": 22481,
+  "removedBlankCrestarRows": 1,
+  "removedCategoryRows": 15,
+  "draftDeadStockRows": 2832,
+  "draftZeroRetailRows": 2785,
+  "draftNegativeWhseRows": 816,
+  "fractionalWhseRows": 14,
+  "duplicateHandlesResolved": 9,
+  "missingTitleFallbackRows": 9,
+  "notes": [
+    "Original file_items.csv was not modified.",
+    "Dead stock rows were kept as draft rather than deleted.",
+    "Inventory quantity uses nonnegative floor(whse); raw whse is preserved in a metafield.",
+    "Metafield columns require matching product metafield definitions in Shopify before import."
+  ]
+}
