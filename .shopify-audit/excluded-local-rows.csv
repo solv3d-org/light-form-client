@@ -1,0 +1,17 @@
+source row,reason,code,description,vendor,whse,rlf,imm,export price,retail price,w. sale price
+2,blank-code-crestar-report-artifact,,,CRESTAR,130,5,0,0,0,0
+3,sentinel-100000-placeholder,+ACC,ACCESSORIES,,1E+05,1E+05,1E+05,0,0,0
+7209,sentinel-100000-placeholder,AIRFREIGHT,AIRFREIGHT CHARGE POSTAL CHARGE,,1E+05,1E+05,1E+05,0,0,0
+8006,sentinel-100000-placeholder,ASSEMBLING,3. ASSEMBLING,,1E+05,1E+05,1E+05,0,0,0
+8517,sentinel-100000-placeholder,BLINDS,"BLINDS - roller, bamboo, wooden and Venetian",,1E+05,1E+05,1E+05,0,0,0
+9217,sentinel-100000-placeholder,CURTAINS,CURTAINS,,1E+05,1E+05,1E+05,0,0,0
+9348,sentinel-100000-placeholder,DEPOSIT,DEPOSIT,,1E+05,1E+05,1E+05,0,0,0
+9350,sentinel-100000-placeholder,DISBURSEMENTS,BEING DISBURSEMENTS INCURRED:-,,1E+05,1E+05,1E+05,0,0,0
+11178,sentinel-100000-placeholder,FREIGHT,4. FREIGHT,,1E+05,1E+05,1E+05,0,0,0
+12760,sentinel-100000-placeholder,INST. CHARGE,INSTALLATION CHARGE,,1E+05,1E+05,1E+05,0,30,0
+12763,sentinel-100000-placeholder,INVOICE,INVOICE ITEM,,1E+05,1E+05,1E+05,0,0,0
+12764,sentinel-100000-placeholder,INVOICE ITEM,INVOICE ITEM,,1E+05,1E+05,1E+05,0,0,0
+14923,sentinel-100000-placeholder,MM,MM,,1E+05,1E+05,1E+05,0,0,0
+15264,sentinel-100000-placeholder,PACKING MATERIALS,2. PACKING MATERIALS,,1E+05,1E+05,1E+05,0,0,0
+17777,sentinel-100000-placeholder,SPECIAL LESS,SPECIAL LESS,,1E+05,1E+05,1E+05,0,0,0
+19333,sentinel-100000-placeholder,TRAVELLING,1. TRAVELLING,,1E+05,1E+05,1E+05,0,0,0
