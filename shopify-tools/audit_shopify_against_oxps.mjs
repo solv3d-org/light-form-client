@@ -99,7 +99,13 @@ function usage() {
 env:
   SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
   SHOPIFY_ADMIN_ACCESS_TOKEN=shpat_...
+  SHOPIFY_CLIENT_ID=...
+  SHOPIFY_CLIENT_SECRET=...
   SHOPIFY_API_VERSION=2026-04
+
+auth:
+  Use SHOPIFY_ADMIN_ACCESS_TOKEN for legacy/admin-created custom apps.
+  Use SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET for Dev Dashboard apps.
 
 required Admin API scopes:
   read_products
@@ -344,6 +350,26 @@ async function shopifyGraphql({ endpoint, token, query, variables }) {
   return payload;
 }
 
+async function getClientCredentialsToken({ storeDomain, clientId, clientSecret }) {
+  const shop = storeDomain.replace(/\.myshopify\.com$/, "");
+  const response = await fetch(`https://${shop}.myshopify.com/admin/oauth/access_token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_id: clientId,
+      client_secret: clientSecret
+    })
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = payload?.error_description || payload?.error || response.statusText;
+    throw new Error(`Shopify token request failed: ${response.status} ${detail}`);
+  }
+  if (!payload?.access_token) throw new Error("Shopify token response missing access_token.");
+  return payload.access_token;
+}
+
 async function fetchRemoteVariants({ storeDomain, token, apiVersion }) {
   const endpoint = `https://${storeDomain}/admin/api/${apiVersion}/graphql.json`;
   const variants = [];
@@ -518,11 +544,13 @@ async function main() {
   const locationName = getArgValue("--location") || "";
   const includePlaceholders = hasArg("--include-placeholders");
   const storeDomain = normalizeStoreDomain(process.env.SHOPIFY_STORE_DOMAIN || "");
-  const token = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || "";
+  const adminToken = process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || "";
+  const clientId = process.env.SHOPIFY_CLIENT_ID || "";
+  const clientSecret = process.env.SHOPIFY_CLIENT_SECRET || "";
   const apiVersion = process.env.SHOPIFY_API_VERSION || DEFAULT_API_VERSION;
 
-  if (!storeDomain || !token) {
-    throw new Error(`Missing SHOPIFY_STORE_DOMAIN or SHOPIFY_ADMIN_ACCESS_TOKEN.\n${usage()}`);
+  if (!storeDomain || (!adminToken && (!clientId || !clientSecret))) {
+    throw new Error(`Missing SHOPIFY_STORE_DOMAIN and either SHOPIFY_ADMIN_ACCESS_TOKEN or SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET.\n${usage()}`);
   }
 
   if (!csvPath && !(await pathExists(oxpsPath))) {
@@ -535,6 +563,7 @@ async function main() {
   console.log(`Loaded ${local.expected.length} local importable rows from ${local.inputCsv}.`);
   if (local.excluded.length) console.log(`Excluded ${local.excluded.length} placeholder/artifact rows.`);
 
+  const token = adminToken || (await getClientCredentialsToken({ storeDomain, clientId, clientSecret }));
   const remoteVariants = await fetchRemoteVariants({ storeDomain, token, apiVersion });
   const remoteProductCount = new Set(remoteVariants.map((variant) => variant.product?.id).filter(Boolean)).size;
   console.log(`Fetched ${remoteVariants.length} remote Shopify variants across ${remoteProductCount} products.`);
