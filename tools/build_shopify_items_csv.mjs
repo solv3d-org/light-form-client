@@ -231,6 +231,7 @@ for (let index = 0; index < dataRows.length; index += 1) {
     "",
     "",
     "",
+    "",
     code,
     "0",
     "shopify",
