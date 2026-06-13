@@ -5,7 +5,7 @@ Staff IMS API for the Light + Form frontend. Admin API credentials stay here; th
 ## Local
 
 ```sh
-cp .env.example .env
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -17,8 +17,10 @@ The first start bootstraps one admin if `data/staff-users.json` is empty and `BO
 | --- | --- |
 | `viewer` | Read inventory and orders |
 | `operator` | Staff cart, draft order, invoice, complete order |
-| `manager` | Operator + discounts, cancel orders, inventory-adjust boundary |
-| `admin` | All permissions, staff users, cost/internal fields |
+| `manager` | Operator + discounts, cancel orders, reserved inventory-adjust permission |
+| `admin` | All permissions, staff users, audit log, cost/internal fields |
+
+Admins can add per-user permission overrides from `/staff`. Overrides are stored as `permissionOverrides.allow` and `permissionOverrides.deny` in `data/staff-users.json`.
 
 ## Staff IMS API
 
@@ -28,8 +30,10 @@ All protected routes use `Authorization: Bearer <token>`.
 POST /api/auth/login
 GET /api/auth/me
 GET /api/staff/users
+GET /api/staff/permissions
 POST /api/staff/users
 PATCH /api/staff/users/:id
+GET /api/audit?limit=100
 GET /api/inventory/search?q=sku-or-title
 POST /api/orders/draft
 GET /api/orders?status=pending
@@ -54,6 +58,12 @@ Draft order payload:
 ```
 
 Customer-hidden fields live in local `data/staff-orders.json`, not public frontend data.
+
+## Logging
+
+- Server requests log one `[api]` line with method, path, status, actor, and latency.
+- Staff interactions append to `data/staff-audit-log.jsonl`.
+- Admins can inspect audit entries in `/staff` or call `GET /api/audit`.
 
 ## Customer Visibility
 
