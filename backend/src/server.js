@@ -3,7 +3,7 @@ import { URL } from "node:url";
 import { verifyPassword, createSessionToken, verifySessionToken } from "./auth.js";
 import { getConfig, assertRuntimeConfig, isShopifyAdminConfigured } from "./config.js";
 import { HttpError, getBearerToken, getCorsHeaders, readJson, sendError, sendJson } from "./http.js";
-import { hasPermission } from "./rbac.js";
+import { getEffectivePermissions, getRolePermissions, hasPermission, normalizePermissionOverrides, PERMISSIONS, ROLES } from "./rbac.js";
 import { StaffStore } from "./store.js";
 import {
   completeDraftOrder,
@@ -22,15 +22,18 @@ const store = new StaffStore(config.dataDir);
 const bootstrappedUser = store.ensureBootstrapAdmin(config);
 
 if (bootstrappedUser) {
-  console.log(`Bootstrapped admin ${bootstrappedUser.email}`);
+  console.log(`[backend] bootstrapped admin email=${bootstrappedUser.email}`);
 }
 
 function publicUser(user) {
+  const permissionOverrides = normalizePermissionOverrides(user.permissionOverrides);
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    permissionOverrides,
+    effectivePermissions: getEffectivePermissions({ ...user, permissionOverrides }),
     active: user.active
   };
 }
@@ -71,19 +74,53 @@ async function requireUser(req) {
 
 function requirePermission(user, permission) {
   if (!permission) return;
-  if (!hasPermission(user.role, permission)) throw new HttpError(403, "Forbidden.");
+  if (!hasPermission(user, permission)) throw new HttpError(403, "Forbidden.");
 }
 
 function assertDiscountAccess(user, body) {
   const hasDiscount = Boolean(body.appliedDiscount || body.lineItems?.some((item) => item.appliedDiscount));
-  if (hasDiscount && !hasPermission(user.role, "discount:apply")) throw new HttpError(403, "Discount permission required.");
+  if (hasDiscount && !hasPermission(user, "discount:apply")) throw new HttpError(403, "Discount permission required.");
 }
 
 function assertCostAccess(user, internal) {
   const costKeys = ["costPrice", "grossMargin", "supplierCost", "discountFloor"];
-  if (costKeys.some((key) => internal && Object.prototype.hasOwnProperty.call(internal, key)) && !hasPermission(user.role, "cost:write")) {
+  if (costKeys.some((key) => internal && Object.prototype.hasOwnProperty.call(internal, key)) && !hasPermission(user, "cost:write")) {
     throw new HttpError(403, "Cost-field permission required.");
   }
+}
+
+function rolePermissionMap() {
+  return Object.fromEntries(ROLES.map((role) => [role, getRolePermissions(role)]));
+}
+
+function assertSelfUpdateAllowed(currentUser, nextInput) {
+  const nextUser = {
+    ...currentUser,
+    role: nextInput.role ?? currentUser.role,
+    permissionOverrides: nextInput.permissionOverrides ?? currentUser.permissionOverrides,
+    active: nextInput.active ?? currentUser.active
+  };
+  if (nextUser.active === false || nextUser.role !== "admin" || !hasPermission(nextUser, "user:manage") || !hasPermission(nextUser, "audit:read")) {
+    throw new HttpError(400, "Admins cannot remove their own admin access.");
+  }
+}
+
+function logRequest({ req, url, user, status, elapsedMs, error = null }) {
+  const actor = user ? `${user.email}:${user.role}` : "anonymous";
+  const suffix = error ? ` error="${error.message}"` : "";
+  console.log(`[api] ${req.method} ${url.pathname} status=${status} actor=${actor} ms=${elapsedMs}${suffix}`);
+}
+
+function auditRequest({ route, req, url, user, status, elapsedMs, error = null }) {
+  if (!user || url.pathname === "/api/audit") return;
+  store.appendAudit(error ? "api.request_failed" : "api.request", user, {
+    method: req.method,
+    path: url.pathname,
+    permission: route?.options?.permission || "",
+    status,
+    elapsedMs,
+    error: error?.message || ""
+  });
 }
 
 function mapStoreError(error) {
@@ -110,9 +147,15 @@ const routes = [
     };
   }),
 
-  route("GET", "/api/auth/me", { permission: "order:read" }, async ({ user }) => ({ staff: publicUser(user) })),
+  route("GET", "/api/auth/me", {}, async ({ user }) => ({ staff: publicUser(user) })),
 
   route("GET", "/api/staff/users", { permission: "user:manage" }, async () => ({ users: store.listUsers() })),
+
+  route("GET", "/api/staff/permissions", { permission: "user:manage" }, async () => ({
+    roles: ROLES,
+    permissions: PERMISSIONS,
+    rolePermissions: rolePermissionMap()
+  })),
 
   route("POST", "/api/staff/users", { permission: "user:manage" }, async ({ body, user }) => {
     try {
@@ -123,9 +166,7 @@ const routes = [
   }),
 
   route("PATCH", "/api/staff/users/:id", { permission: "user:manage" }, async ({ params, body, user }) => {
-    if (params.id === user.id && (body.active === false || (body.role && body.role !== "admin"))) {
-      throw new HttpError(400, "Admins cannot disable or demote their own account.");
-    }
+    if (params.id === user.id) assertSelfUpdateAllowed(user, body);
 
     try {
       return { staff: store.updateUser(params.id, body, user) };
@@ -217,15 +258,25 @@ const routes = [
         canceledAt: new Date().toISOString()
       }, user)
     };
-  })
+  }),
+
+  route("GET", "/api/audit", { permission: "audit:read" }, async ({ url }) => ({
+    entries: store.listAudit({
+      limit: url.searchParams.get("limit") || 100,
+      action: url.searchParams.get("action") || "",
+      actorId: url.searchParams.get("actorId") || ""
+    })
+  }))
 ];
 
 async function handleRequest(req, res) {
   const corsHeaders = getCorsHeaders(req, config);
   if (req.method === "OPTIONS") return sendJson(res, 204, null, corsHeaders);
 
+  const started = Date.now();
+  let context = { req, url: new URL(req.url || "/", `http://${req.headers.host || "localhost"}`), route: null, user: null };
   try {
-    const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
+    const url = context.url;
     const found = routes
       .map((candidate) => ({ route: candidate, params: matchPattern(candidate.pattern, url.pathname) }))
       .find((candidate) => candidate.route.method === req.method && candidate.params);
@@ -234,6 +285,7 @@ async function handleRequest(req, res) {
 
     const body = await readJson(req);
     const user = found.route.options.auth === false ? null : await requireUser(req);
+    context = { req, url, route: found.route, user };
     requirePermission(user, found.route.options.permission);
 
     const payload = await found.route.handler({
@@ -245,8 +297,15 @@ async function handleRequest(req, res) {
       user
     });
 
+    const elapsedMs = Date.now() - started;
+    logRequest({ req, url, user, status: 200, elapsedMs });
+    auditRequest({ route: found.route, req, url, user, status: 200, elapsedMs });
     return sendJson(res, 200, payload, corsHeaders);
   } catch (error) {
+    const status = error instanceof HttpError ? error.status : error.status || 500;
+    const elapsedMs = Date.now() - started;
+    logRequest({ ...context, status, elapsedMs, error });
+    auditRequest({ ...context, status, elapsedMs, error });
     if (error.status && !(error instanceof HttpError)) {
       return sendError(res, new HttpError(error.status, error.message), corsHeaders);
     }
@@ -256,5 +315,5 @@ async function handleRequest(req, res) {
 
 const server = createServer(handleRequest);
 server.listen(config.port, () => {
-  console.log(`Light + Form backend listening on http://localhost:${config.port}`);
+  console.log(`[backend] listening url=http://localhost:${config.port} dataDir=${config.dataDir}`);
 });

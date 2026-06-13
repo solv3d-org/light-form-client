@@ -57,6 +57,10 @@ export function listStaffUsers() {
   return staffRequest("/api/staff/users");
 }
 
+export function listStaffPermissionConfig() {
+  return staffRequest("/api/staff/permissions");
+}
+
 export function createStaffUser(input) {
   return staffRequest("/api/staff/users", {
     method: "POST",
@@ -100,4 +104,9 @@ export function completeStaffOrder(orderId, paymentPending = false) {
     method: "POST",
     body: { paymentPending }
   });
+}
+
+export function listStaffAudit(limit = 100) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  return staffRequest(`/api/audit?${params.toString()}`);
 }

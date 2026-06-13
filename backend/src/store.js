@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeF
 import path from "node:path";
 import crypto from "node:crypto";
 import { hashPassword } from "./auth.js";
-import { normalizeRole } from "./rbac.js";
+import { getEffectivePermissions, normalizePermissionOverrides, normalizeRole } from "./rbac.js";
 
 function nowIso() {
   return new Date().toISOString();
@@ -25,15 +25,36 @@ function normalizeEmail(email) {
 
 function publicUser(user) {
   if (!user) return null;
+  const permissionOverrides = normalizePermissionOverrides(user.permissionOverrides);
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    permissionOverrides,
+    effectivePermissions: getEffectivePermissions({ ...user, permissionOverrides }),
     active: user.active,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };
+}
+
+function readJsonLines(filePath, limit) {
+  if (!existsSync(filePath)) return [];
+  const lines = readFileSync(filePath, "utf8")
+    .split(/\r?\n/)
+    .filter(Boolean);
+  return lines
+    .slice(Math.max(0, lines.length - limit))
+    .map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean)
+    .reverse();
 }
 
 export class StaffStore {
@@ -79,6 +100,7 @@ export class StaffStore {
       email,
       name: String(input.name || email).trim(),
       role,
+      permissionOverrides: normalizePermissionOverrides(input.permissionOverrides),
       active: input.active !== false,
       passwordHash: hashPassword(input.password),
       createdAt: nowIso(),
@@ -87,7 +109,12 @@ export class StaffStore {
 
     users.push(user);
     this.saveUsers(users);
-    this.appendAudit("staff_user.created", actor, { userId: user.id, email: user.email, role: user.role });
+    this.appendAudit("staff_user.created", actor, {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      permissionOverrides: user.permissionOverrides
+    });
     return publicUser(user);
   }
 
@@ -103,13 +130,22 @@ export class StaffStore {
       if (!role) throw new Error("Valid role required.");
       nextUser.role = role;
     }
+    if (input.permissionOverrides != null) {
+      nextUser.permissionOverrides = normalizePermissionOverrides(input.permissionOverrides);
+    }
     if (input.active != null) nextUser.active = Boolean(input.active);
     if (input.password) nextUser.passwordHash = hashPassword(input.password);
     nextUser.updatedAt = nowIso();
 
     users[index] = nextUser;
     this.saveUsers(users);
-    this.appendAudit("staff_user.updated", actor, { userId: nextUser.id, email: nextUser.email, role: nextUser.role });
+    this.appendAudit("staff_user.updated", actor, {
+      userId: nextUser.id,
+      email: nextUser.email,
+      role: nextUser.role,
+      active: nextUser.active,
+      permissionOverrides: normalizePermissionOverrides(nextUser.permissionOverrides)
+    });
     return publicUser(nextUser);
   }
 
@@ -187,6 +223,14 @@ export class StaffStore {
     this.saveOrders(orders);
     this.appendAudit("order.updated", actor, { orderId: nextOrder.id, status: nextOrder.status });
     return nextOrder;
+  }
+
+  listAudit({ limit = 100, action = "", actorId = "" } = {}) {
+    const boundedLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
+    return readJsonLines(this.auditPath, boundedLimit * 2)
+      .filter((entry) => !action || entry.action === action)
+      .filter((entry) => !actorId || entry.actor?.id === actorId)
+      .slice(0, boundedLimit);
   }
 
   appendAudit(action, actor, details = {}) {
