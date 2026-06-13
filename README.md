@@ -9,11 +9,18 @@ npm install
 npm run dev
 ```
 
-Root `npm run dev` starts Vite and `backend/src/server.js`.
+Root `npm run dev` starts Vite and `backend/src/server.js`. `make dev`, `make dev-web`, and `make dev-backend` wrap the same commands.
 
 Copy `.env.example` to `.env.local` and set the `VITE_SHOPIFY_*` values to load Shopify products and cart checkout. Without those values, the app uses the bundled preview catalog and disables checkout.
 
 Backend config lives in `backend/.env.local`; copy `backend/.env.example` if needed.
+
+## Staff IMS
+
+- `/staff` signs in against the backend with `Authorization: Bearer <token>`.
+- Admin users can create/disable staff, edit roles, customize per-user permission overrides, and view audit activity.
+- Role presets live in `backend/src/rbac.js`; per-user overrides are stored in `backend/data/staff-users.json`.
+- Staff activity is appended to `backend/data/staff-audit-log.jsonl` and exposed to admins through `/api/audit`.
 
 ## Shopify Flow
 
