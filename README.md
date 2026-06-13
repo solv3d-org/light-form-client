@@ -20,7 +20,9 @@ Copy `.env.example` to `.env.local` and set the `VITE_SHOPIFY_*` values to load 
 
 ## CSV Migration
 
-The final CSV schema is pending. Current scripts provide the adapter boundary and validation:
+See [docs/shopify-migration.md](docs/shopify-migration.md) for the current Shopify migration handoff, data locations, auth flow, import order, and audit interpretation.
+
+Current scripts provide the adapter boundary and validation:
 
 ```sh
 npm run shopify:audit-csv -- path/to/products.csv
