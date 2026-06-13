@@ -138,8 +138,102 @@ function LoginPanel({ onLogin }) {
   );
 }
 
+function PermissionGrid({ draft, permissionConfig, onChange }) {
+  if (!permissionConfig.permissions.length) return null;
+  return (
+    <div className="staff-permission-grid">
+      {permissionConfig.permissions.map((permission) => (
+        <label className="staff-checkbox" key={permission.key}>
+          <input
+            type="checkbox"
+            checked={hasDraftPermission(draft, permissionConfig, permission.key)}
+            onChange={() => onChange(toggleDraftPermission(draft, permissionConfig, permission.key))}
+          />
+          {permission.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function StaffUserRow({ user, permissionConfig, status, onSave, onToggleActive }) {
+  const [draft, setDraft] = useState(() => ({
+    name: user.name || "",
+    role: user.role,
+    password: "",
+    permissionOverrides: normalizeOverrides(user.permissionOverrides)
+  }));
+
+  useEffect(() => {
+    setDraft({
+      name: user.name || "",
+      role: user.role,
+      password: "",
+      permissionOverrides: normalizeOverrides(user.permissionOverrides)
+    });
+  }, [user]);
+
+  const setDraftValue = (key, value) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleRoleChange = (role) => {
+    setDraft((current) => ({ ...current, role, permissionOverrides: EMPTY_PERMISSION_OVERRIDES }));
+  };
+
+  const handleSave = async (event) => {
+    event.preventDefault();
+    await onSave(user, {
+      name: draft.name,
+      role: draft.role,
+      permissionOverrides: draft.permissionOverrides,
+      ...(draft.password ? { password: draft.password } : {})
+    });
+    setDraft((current) => ({ ...current, password: "" }));
+  };
+
+  return (
+    <article className="staff-user-row staff-user-editor">
+      <form onSubmit={handleSave}>
+        <div className="staff-user-summary">
+          <strong>{user.email}</strong>
+          <span>{user.active ? "active" : "disabled"} · {user.effectivePermissions?.length || 0} permissions</span>
+        </div>
+        <div className="staff-user-controls">
+          <input value={draft.name} aria-label="Staff name" onChange={(event) => setDraftValue("name", event.target.value)} />
+          <select value={draft.role} aria-label="Staff role" onChange={(event) => handleRoleChange(event.target.value)}>
+            {permissionConfig.roles.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+          <input
+            type="password"
+            value={draft.password}
+            placeholder="New password"
+            aria-label="New password"
+            autoComplete="new-password"
+            onChange={(event) => setDraftValue("password", event.target.value)}
+          />
+        </div>
+        <PermissionGrid draft={draft} permissionConfig={permissionConfig} onChange={setDraft} />
+        <div className="staff-order-actions">
+          <button className="button-inline" type="submit" disabled={status === "saving"}>
+            Save
+          </button>
+          <button className="button-inline" type="button" disabled={status === "saving"} onClick={() => onToggleActive(user)}>
+            {user.active ? "Disable" : "Enable"}
+          </button>
+        </div>
+      </form>
+    </article>
+  );
+}
+
 function StaffUsersPanel() {
   const [users, setUsers] = useState([]);
+  const [permissionConfig, setPermissionConfig] = useState(FALLBACK_PERMISSION_CONFIG);
   const [form, setForm] = useState({ email: "", name: "", role: "operator", password: "" });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -149,8 +243,13 @@ function StaffUsersPanel() {
     setError("");
 
     try {
-      const payload = await listStaffUsers();
-      setUsers(payload.users || []);
+      const [usersPayload, permissionsPayload] = await Promise.all([listStaffUsers(), listStaffPermissionConfig()]);
+      setUsers(usersPayload.users || []);
+      setPermissionConfig({
+        roles: permissionsPayload.roles || STAFF_ROLES,
+        permissions: permissionsPayload.permissions || [],
+        rolePermissions: permissionsPayload.rolePermissions || {}
+      });
     } catch (nextError) {
       setError(nextError.message);
     } finally {
@@ -174,6 +273,19 @@ function StaffUsersPanel() {
     try {
       await createStaffUser(form);
       setForm({ email: "", name: "", role: "operator", password: "" });
+      await loadUsers();
+    } catch (nextError) {
+      setError(nextError.message);
+      setStatus("idle");
+    }
+  };
+
+  const handleSaveUser = async (user, input) => {
+    setStatus("saving");
+    setError("");
+
+    try {
+      await updateStaffUser(user.id, input);
       await loadUsers();
     } catch (nextError) {
       setError(nextError.message);
@@ -220,7 +332,7 @@ function StaffUsersPanel() {
           onChange={(event) => setFormValue("name", event.target.value)}
         />
         <select value={form.role} aria-label="Staff role" onChange={(event) => setFormValue("role", event.target.value)}>
-          {STAFF_ROLES.map((role) => (
+          {permissionConfig.roles.map((role) => (
             <option key={role} value={role}>
               {role}
             </option>
@@ -242,16 +354,14 @@ function StaffUsersPanel() {
       {error && <p className="staff-error">{error}</p>}
       <div className="staff-user-list">
         {users.map((user) => (
-          <article className="staff-user-row" key={user.id}>
-            <div>
-              <strong>{user.name || user.email}</strong>
-              <span>{user.email}</span>
-            </div>
-            <span>{user.role}</span>
-            <button className="button-inline" type="button" disabled={status === "saving"} onClick={() => handleToggleActive(user)}>
-              {user.active ? "Disable" : "Enable"}
-            </button>
-          </article>
+          <StaffUserRow
+            key={user.id}
+            user={user}
+            permissionConfig={permissionConfig}
+            status={status}
+            onSave={handleSaveUser}
+            onToggleActive={handleToggleActive}
+          />
         ))}
       </div>
     </section>
@@ -330,7 +440,7 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
   const [internal, setInternal] = useState(EMPTY_INTERNAL);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
-  const canWriteCost = staff?.role === "admin";
+  const canWriteCost = hasStaffPermission(staff, "cost:write");
 
   const total = useMemo(
     () => cart.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0),
@@ -495,12 +605,14 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
   );
 }
 
-function OrdersPanel({ refreshKey }) {
+function OrdersPanel({ staff, refreshKey }) {
   const [tab, setTab] = useState("pending");
   const [orders, setOrders] = useState([]);
   const [status, setStatus] = useState("idle");
   const [actionStatus, setActionStatus] = useState("");
   const [error, setError] = useState("");
+  const canSendInvoice = hasStaffPermission(staff, "invoice:send");
+  const canCompleteOrder = hasStaffPermission(staff, "order:complete");
 
   const loadOrders = async () => {
     setStatus("loading");
@@ -573,18 +685,86 @@ function OrdersPanel({ refreshKey }) {
               <span>{order.customer?.email || "No email"} · {order.fulfillment?.type || "pickup"}</span>
               <small>{order.createdAt}</small>
             </div>
-            {tab === "pending" && (
+            {tab === "pending" && (canSendInvoice || canCompleteOrder) && (
               <div className="staff-order-actions">
-                <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleInvoice(order.id)}>
-                  Invoice
-                </button>
-                <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleComplete(order.id)}>
-                  Complete
-                </button>
+                {canSendInvoice && (
+                  <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleInvoice(order.id)}>
+                    Invoice
+                  </button>
+                )}
+                {canCompleteOrder && (
+                  <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleComplete(order.id)}>
+                    Complete
+                  </button>
+                )}
               </div>
             )}
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function detailLabel(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function AuditLogPanel() {
+  const [entries, setEntries] = useState([]);
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState("");
+
+  const loadAudit = async () => {
+    setStatus("loading");
+    setError("");
+
+    try {
+      const payload = await listStaffAudit(100);
+      setEntries(payload.entries || []);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setStatus("idle");
+    }
+  };
+
+  useEffect(() => {
+    loadAudit();
+  }, []);
+
+  return (
+    <section className="staff-panel staff-audit">
+      <div className="staff-panel-head">
+        <div>
+          <p className="section-kicker">Audit</p>
+          <h2>Staff activity</h2>
+        </div>
+        <button className="button-inline" type="button" disabled={status === "loading"} onClick={loadAudit}>
+          Refresh
+        </button>
+      </div>
+      {error && <p className="staff-error">{error}</p>}
+      {status === "loading" && <p className="staff-muted">Loading audit log.</p>}
+      <div className="staff-audit-list">
+        {entries.map((entry) => {
+          const details = Object.entries(entry.details || {})
+            .map(([key, value]) => `${key}: ${detailLabel(value)}`)
+            .filter(Boolean)
+            .slice(0, 4)
+            .join(" · ");
+          return (
+            <article className="staff-audit-row" key={entry.id}>
+              <div>
+                <strong>{entry.action}</strong>
+                <span>{entry.actor?.email || "system"} · {entry.createdAt}</span>
+                {details && <small>{details}</small>}
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
