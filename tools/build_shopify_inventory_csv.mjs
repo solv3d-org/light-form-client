@@ -54,6 +54,7 @@ function optionalCell(row, indexes, header) {
 }
 
 const location = getArgValue("--location") || process.env.SHOPIFY_LOCATION || "";
+const outputPath = getArgValue("--output") || OUTPUT;
 if (!location.trim()) {
   throw new Error('Missing location. Usage: node tools/build_shopify_inventory_csv.mjs --location "Exact Shopify Location Name"');
 }
@@ -96,12 +97,12 @@ for (let index = 0; index < dataRows.length; index += 1) {
 }
 
 const csv = `${outputRows.map((row) => row.map(csvEscape).join(",")).join("\n")}\n`;
-await fs.writeFile(OUTPUT, csv, "utf8");
+await fs.writeFile(outputPath, csv, "utf8");
 console.log(
   JSON.stringify(
     {
       input: INPUT,
-      output: OUTPUT,
+      output: outputPath,
       rows: outputRows.length - 1,
       location: location.trim(),
       notes: [
