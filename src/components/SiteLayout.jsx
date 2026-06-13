@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useCart } from "../context/CartContext";
+import CartDrawer from "./CartDrawer";
 
 const pages = [
   { id: "home", label: "Home", href: "/" },
@@ -14,6 +16,17 @@ const footerLinks = [
   { label: "Services", href: "/services" },
   { label: "About Us", href: "/about" }
 ];
+
+function HeaderCartButton() {
+  const { isEnabled, openCart, totalQuantity } = useCart();
+  if (!isEnabled) return null;
+
+  return (
+    <button className="cart-toggle" type="button" onClick={openCart}>
+      Cart <span>{totalQuantity}</span>
+    </button>
+  );
+}
 
 export default function SiteLayout({ pageTitle, children }) {
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -36,15 +49,6 @@ export default function SiteLayout({ pageTitle, children }) {
             <span className="brandmark-word">Light + Form</span>
             <span className="brandmark-sub">Lighting & Furnishing</span>
           </NavLink>
-          <button
-            className="nav-toggle"
-            type="button"
-            aria-expanded={String(isNavOpen)}
-            aria-controls="site-navigation"
-            onClick={() => setIsNavOpen((open) => !open)}
-          >
-            Menu
-          </button>
           <nav className={`site-nav${isNavOpen ? " is-open" : ""}`} id="site-navigation" aria-label="Primary navigation">
             <ul>
               {pages.map((page) => (
@@ -56,10 +60,23 @@ export default function SiteLayout({ pageTitle, children }) {
               ))}
             </ul>
           </nav>
+          <div className="header-actions">
+            <HeaderCartButton />
+            <button
+              className="nav-toggle"
+              type="button"
+              aria-expanded={String(isNavOpen)}
+              aria-controls="site-navigation"
+              onClick={() => setIsNavOpen((open) => !open)}
+            >
+              Menu
+            </button>
+          </div>
         </div>
       </header>
 
       {children}
+      <CartDrawer />
 
       <footer className="site-footer">
         <div className="site-shell footer-shell">

@@ -25,7 +25,7 @@ export default function ProductImage({ src, alt }) {
   return (
     <img
       src={displaySrc}
-      alt={alt}
+      alt={alt || ""}
       loading="lazy"
       className={isCutout ? "is-cutout-image" : undefined}
     />

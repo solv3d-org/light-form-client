@@ -7,11 +7,12 @@ function getCarouselPerView() {
   return 4;
 }
 
-export default function HomeCarousel({ products, catalogMetadata }) {
+export default function HomeCarousel({ products, catalogMetadata, catalogStatus }) {
   const featuredProducts = products.filter((product) => product.featured);
   const carouselProducts = featuredProducts.length ? featuredProducts : products.slice(0, 12);
   const [perView, setPerView] = useState(() => getCarouselPerView());
   const [pageIndex, setPageIndex] = useState(0);
+  const sourceLabel = catalogStatus === "loading" ? "Loading catalog" : catalogMetadata.sourceLabel || "Product catalog";
 
   useEffect(() => {
     const handleResize = () => {
@@ -37,11 +38,10 @@ export default function HomeCarousel({ products, catalogMetadata }) {
     <div className="carousel-shell">
       <div className="carousel-head">
         <div className="section-copy">
-          <p className="section-kicker">Landing page sync</p>
-          <h2 className="section-title">Latest products from the live catalog.</h2>
+          <p className="section-kicker">{sourceLabel}</p>
+          <h2 className="section-title">Latest pieces for the room.</h2>
           <p className="section-body">
-            Showing the latest {catalogMetadata.featuredCount} products pulled from Light-Pro&apos;s WooCommerce feed,
-            four at a time on desktop and responsive below that.
+            Showing {catalogMetadata.featuredCount} selected products from a catalog of {catalogMetadata.productCount}.
           </p>
         </div>
         <div className="carousel-meta">
