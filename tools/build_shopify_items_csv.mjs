@@ -20,27 +20,30 @@ const SOURCE_HEADERS = [
 const SHOPIFY_HEADERS = [
   "Handle",
   "Title",
-  "Description",
+  "Body (HTML)",
   "Vendor",
-  "Status",
-  "Published on online store",
-  "SKU",
+  "Type",
+  "Tags",
+  "Published",
   "Option1 Name",
   "Option1 Value",
+  "Option2 Name",
   "Option2 Value",
+  "Option3 Name",
   "Option3 Value",
-  "Price",
-  "Cost per item",
-  "Inventory tracker",
-  "Inventory quantity",
-  "Continue selling when out of stock",
-  "Requires shipping",
-  "Fulfillment service",
-  "Tags",
-  "RLF inventory (product.metafields.custom.rlf_inventory)",
-  "IMM inventory (product.metafields.custom.imm_inventory)",
-  "Wholesale price (product.metafields.custom.wholesale_price)",
-  "Legacy WHSE (product.metafields.custom.legacy_whse)"
+  "Variant SKU",
+  "Variant Grams",
+  "Variant Inventory Tracker",
+  "Variant Inventory Qty",
+  "Variant Inventory Policy",
+  "Variant Fulfillment Service",
+  "Variant Price",
+  "Variant Compare-at Price",
+  "Variant Requires Shipping",
+  "Variant Taxable",
+  "Variant Barcode",
+  "Image Src",
+  "Image Alt Text"
 ];
 
 const TRANSLITERATIONS = new Map(
@@ -157,9 +160,9 @@ const report = {
   notes: [
     "Original file_items.csv was not modified.",
     "Handle is generated from code, URL-safe, and unique per row.",
-    "Dead stock rows were kept as draft rather than deleted.",
-    "Inventory quantity uses nonnegative floor(whse); raw whse is preserved in a metafield.",
-    "Metafield columns require matching product metafield definitions in Shopify before import."
+    "Dead stock rows were kept but set Published=false.",
+    "Inventory quantity uses nonnegative floor(whse).",
+    "Native Shopify import rejected cost/status/metafield columns, so export price, rlf, imm, wholesale price, raw whse, and Status are intentionally excluded from this first import CSV."
   ]
 };
 
@@ -220,25 +223,27 @@ for (let index = 0; index < dataRows.length; index += 1) {
     title,
     "",
     values.vendor,
-    status,
+    "",
+    tags.join(", "),
     status === "active" ? "true" : "false",
+    "Default Title",
+    "Default Title",
+    "",
+    "",
+    "",
     code,
-    "Default Title",
-    "Default Title",
-    "",
-    "",
-    formatDecimal(values["retail price"]),
-    formatDecimal(values["export price"]),
+    "0",
     "shopify",
     inventoryQuantity(whse),
     "deny",
-    "true",
     "manual",
-    tags.join(", "),
-    formatDecimal(values.rlf),
-    formatDecimal(values.imm),
-    formatDecimal(values["w. sale price"]),
-    formatDecimal(values.whse)
+    formatDecimal(values["retail price"]),
+    "",
+    "true",
+    "true",
+    "",
+    "",
+    ""
   ]);
 }
 
