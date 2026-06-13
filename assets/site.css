@@ -1058,13 +1058,39 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-cart-form textarea,
 .staff-search input,
 .staff-user-form input,
-.staff-user-form select {
+.staff-user-form select,
+.staff-user-controls input,
+.staff-user-controls select {
   width: 100%;
   border: 1px solid var(--line-strong);
-  background: color-mix(in srgb, var(--bg-elevated) 72%, white);
+  background: color-mix(in srgb, var(--bg-elevated) 84%, var(--surface));
   color: var(--text);
   padding: 12px 13px;
   font: inherit;
+  border-radius: 0;
+  caret-color: var(--accent);
+}
+
+.staff-login input::placeholder,
+.staff-cart-form input::placeholder,
+.staff-cart-form textarea::placeholder,
+.staff-search input::placeholder,
+.staff-user-form input::placeholder,
+.staff-user-controls input::placeholder {
+  color: color-mix(in srgb, var(--text-soft) 72%, transparent);
+}
+
+.staff-user-form select,
+.staff-user-controls select {
+  color-scheme: dark;
+  appearance: auto;
+}
+
+html[data-theme="neutral"] .staff-user-form select,
+html[data-theme="neutral"] .staff-user-controls select,
+html[data-theme="warm"] .staff-user-form select,
+html[data-theme="warm"] .staff-user-controls select {
+  color-scheme: light;
 }
 
 .staff-cart-form textarea {
@@ -1138,6 +1164,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-result-list,
 .staff-order-list,
 .staff-user-list,
+.staff-audit-list,
 .staff-cart-lines,
 .staff-cart-form {
   display: grid;
@@ -1146,6 +1173,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
 .staff-result,
 .staff-order,
+.staff-audit-row,
 .staff-user-row,
 .staff-cart-line {
   display: flex;
@@ -1156,8 +1184,29 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   background: color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
+.staff-user-editor {
+  display: block;
+}
+
+.staff-user-editor form,
+.staff-user-controls,
+.staff-permission-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.staff-user-controls {
+  grid-template-columns: minmax(140px, 1fr) minmax(110px, 0.5fr) minmax(150px, 0.8fr);
+}
+
+.staff-permission-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 4px;
+}
+
 .staff-result div,
 .staff-order div,
+.staff-audit-row div,
 .staff-user-row div,
 .staff-cart-line div {
   display: grid;
@@ -1169,8 +1218,19 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-user-row span,
 .staff-cart-line span,
 .staff-result small,
-.staff-order small {
+.staff-order small,
+.staff-audit-row span,
+.staff-audit-row small {
   color: var(--text-soft);
+}
+
+.staff-permission-grid .staff-checkbox {
+  min-height: auto;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .staff-user-form {
@@ -1238,6 +1298,10 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
 .staff-checkbox input {
   width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  accent-color: var(--accent);
 }
 
 @media (max-width: 1040px) {
@@ -1399,6 +1463,8 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
   .staff-search,
   .staff-user-form,
+  .staff-user-controls,
+  .staff-permission-grid,
   .staff-field-grid {
     grid-template-columns: 1fr;
   }

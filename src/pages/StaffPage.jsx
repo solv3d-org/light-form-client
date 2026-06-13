@@ -377,7 +377,7 @@ function StaffField({ label, children }) {
   );
 }
 
-function InventorySearch({ onAdd }) {
+function InventorySearch({ canAdd, onAdd }) {
   const [query, setQuery] = useState("");
   const [variants, setVariants] = useState([]);
   const [status, setStatus] = useState("idle");
@@ -423,9 +423,11 @@ function InventorySearch({ onAdd }) {
                 {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
               </small>
             </div>
-            <button className="button-inline" type="button" onClick={() => onAdd(variant)}>
-              Add
-            </button>
+            {canAdd && (
+              <button className="button-inline" type="button" onClick={() => onAdd(variant)}>
+                Add
+              </button>
+            )}
           </article>
         ))}
       </div>
@@ -830,6 +832,12 @@ export default function StaffPage() {
 
   if (!staff) return <LoginPanel onLogin={setStaff} />;
 
+  const canReadInventory = hasStaffPermission(staff, "inventory:read");
+  const canReadOrders = hasStaffPermission(staff, "order:read");
+  const canCreateOrders = hasStaffPermission(staff, "order:create");
+  const canManageStaff = hasStaffPermission(staff, "user:manage");
+  const canReadAudit = hasStaffPermission(staff, "audit:read");
+
   return (
     <main className="staff-page">
       <section className="staff-workspace site-shell">
@@ -848,20 +856,23 @@ export default function StaffPage() {
         </div>
         <div className="staff-layout">
           <div className="staff-main-column">
-            <InventorySearch onAdd={addVariant} />
-            <OrdersPanel refreshKey={refreshKey} />
-            {staff.role === "admin" && <StaffUsersPanel />}
+            {canReadInventory && <InventorySearch canAdd={canCreateOrders} onAdd={addVariant} />}
+            {canReadOrders && <OrdersPanel staff={staff} refreshKey={refreshKey} />}
+            {canManageStaff && <StaffUsersPanel />}
+            {canReadAudit && <AuditLogPanel />}
           </div>
-          <StaffCart
-            staff={staff}
-            cart={cart}
-            onQuantity={setQuantity}
-            onRemove={(variantId) => setQuantity(variantId, 0)}
-            onDraftCreated={() => {
-              setCart([]);
-              setRefreshKey((value) => value + 1);
-            }}
-          />
+          {canCreateOrders && (
+            <StaffCart
+              staff={staff}
+              cart={cart}
+              onQuantity={setQuantity}
+              onRemove={(variantId) => setQuantity(variantId, 0)}
+              onDraftCreated={() => {
+                setCart([]);
+                setRefreshKey((value) => value + 1);
+              }}
+            />
+          )}
         </div>
       </section>
     </main>
