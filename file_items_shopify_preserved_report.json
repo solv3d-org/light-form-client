@@ -1,0 +1,28 @@
+{
+  "source": "file_items.csv",
+  "productOutput": "file_items_shopify_product_preserved.csv",
+  "inventoryOutput": "file_items_shopify_inventory_preserved.csv",
+  "excludedOutput": "file_items_shopify_preserved_excluded.csv",
+  "sourceRows": 22497,
+  "productRows": 22481,
+  "inventoryRows": 22481,
+  "excludedRows": 16,
+  "removedBlankCrestarRows": 1,
+  "removedCategoryRows": 15,
+  "draftUnpublishedRows": 6193,
+  "duplicateHandlesResolved": 9,
+  "missingTitleFallbackRows": 9,
+  "preservedInBodyHtml": [
+    "source row",
+    "code",
+    "description",
+    "vendor",
+    "whse",
+    "rlf",
+    "imm",
+    "export price",
+    "retail price",
+    "w. sale price"
+  ],
+  "inventoryLocation": ""
+}
