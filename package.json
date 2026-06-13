@@ -4,11 +4,23 @@
   "version": "0.0.0",
   "description": "React storefront prototype for Light + Form Concepts",
   "type": "module",
+  "workspaces": [
+    "backend"
+  ],
   "scripts": {
     "scrape:catalog": "node scripts/scrape-light-pro-catalog.mjs",
-    "dev": "vite",
+    "dev": "node scripts/dev-fullstack.mjs",
+    "dev:web": "vite",
+    "dev:backend": "npm --workspace backend run dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start:backend": "npm --workspace backend start",
+    "check": "npm --workspace backend run check",
+    "test": "npm --workspace backend test",
+    "shopify:audit-csv": "npm --workspace backend run shopify:audit-csv --",
+    "shopify:audit-sample": "npm --workspace backend run shopify:audit-sample",
+    "shopify:audit-remote": "npm --workspace backend run shopify:audit-remote --",
+    "shopify:import-products": "npm --workspace backend run shopify:import-products --"
   },
   "keywords": [
     "react",

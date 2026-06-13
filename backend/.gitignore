@@ -1,0 +1,7 @@
+.env
+.env.local
+.shopify-audit/
+.shopify-import/
+data/*.json
+data/*.jsonl
+!data/.gitkeep
