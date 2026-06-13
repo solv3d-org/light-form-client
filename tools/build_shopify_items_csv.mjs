@@ -18,15 +18,17 @@ const SOURCE_HEADERS = [
 ];
 
 const SHOPIFY_HEADERS = [
-  "URL handle",
+  "Handle",
   "Title",
   "Description",
   "Vendor",
   "Status",
   "Published on online store",
   "SKU",
-  "Option1 name",
-  "Option1 value",
+  "Option1 Name",
+  "Option1 Value",
+  "Option2 Value",
+  "Option3 Value",
   "Price",
   "Cost per item",
   "Inventory tracker",
@@ -154,6 +156,7 @@ const report = {
   missingTitleFallbackRows: 0,
   notes: [
     "Original file_items.csv was not modified.",
+    "Handle is generated from code, URL-safe, and unique per row.",
     "Dead stock rows were kept as draft rather than deleted.",
     "Inventory quantity uses nonnegative floor(whse); raw whse is preserved in a metafield.",
     "Metafield columns require matching product metafield definitions in Shopify before import."
@@ -222,6 +225,8 @@ for (let index = 0; index < dataRows.length; index += 1) {
     code,
     "Default Title",
     "Default Title",
+    "",
+    "",
     formatDecimal(values["retail price"]),
     formatDecimal(values["export price"]),
     "shopify",

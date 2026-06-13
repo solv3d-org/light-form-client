@@ -13,6 +13,7 @@
   "missingTitleFallbackRows": 9,
   "notes": [
     "Original file_items.csv was not modified.",
+    "Handle is generated from code, URL-safe, and unique per row.",
     "Dead stock rows were kept as draft rather than deleted.",
     "Inventory quantity uses nonnegative floor(whse); raw whse is preserved in a metafield.",
     "Metafield columns require matching product metafield definitions in Shopify before import."
