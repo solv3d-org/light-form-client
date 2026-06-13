@@ -1,7 +1,7 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { parseCsv } from "../scripts/shopify-csv-adapter.mjs";
+import { parseCsv } from "./shopify-csv-adapter.mjs";
 
 const SOURCE_HEADERS = [
   "code",
@@ -94,7 +94,7 @@ const VARIANTS_QUERY = `
 `;
 
 function usage() {
-  return `usage: node tools/audit_shopify_against_oxps.mjs [--oxps file.oxps | --csv file_items.csv] [--location "Location Name"] [--include-placeholders] [--output-dir .shopify-audit]
+  return `usage: node shopify-tools/audit_shopify_against_oxps.mjs [--oxps file.oxps | --csv file_items.csv] [--location "Location Name"] [--include-placeholders] [--output-dir .shopify-audit]
 
 env:
   SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
@@ -536,7 +536,8 @@ async function main() {
   if (local.excluded.length) console.log(`Excluded ${local.excluded.length} placeholder/artifact rows.`);
 
   const remoteVariants = await fetchRemoteVariants({ storeDomain, token, apiVersion });
-  console.log(`Fetched ${remoteVariants.length} remote Shopify variants.`);
+  const remoteProductCount = new Set(remoteVariants.map((variant) => variant.product?.id).filter(Boolean)).size;
+  console.log(`Fetched ${remoteVariants.length} remote Shopify variants across ${remoteProductCount} products.`);
 
   const result = compare({ expected: local.expected, excluded: local.excluded, remoteVariants, locationName });
   await writeCsv(path.join(outputDir, "missing-local-in-shopify.csv"), result.missing);
@@ -554,6 +555,7 @@ async function main() {
     locationFilter: locationName || null,
     localRowsCompared: local.expected.length,
     localRowsExcluded: local.excluded.length,
+    remoteProducts: remoteProductCount,
     remoteVariants: remoteVariants.length,
     missingLocalInShopify: result.missing.length - 1,
     mismatchRows: result.mismatches.length - 1,

@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { parseCsv } from "../scripts/shopify-csv-adapter.mjs";
+import { parseCsv } from "./shopify-csv-adapter.mjs";
 
 const INPUT = "file_items_shopify_import.csv";
 const OUTPUT = "file_items_shopify_inventory_import.csv";
@@ -56,7 +56,7 @@ function optionalCell(row, indexes, header) {
 const location = getArgValue("--location") || process.env.SHOPIFY_LOCATION || "";
 const outputPath = getArgValue("--output") || OUTPUT;
 if (!location.trim()) {
-  throw new Error('Missing location. Usage: node tools/build_shopify_inventory_csv.mjs --location "Exact Shopify Location Name"');
+  throw new Error('Missing location. Usage: node shopify-tools/build_shopify_inventory_csv.mjs --location "Exact Shopify Location Name"');
 }
 
 const sourceText = await fs.readFile(INPUT, "utf8");

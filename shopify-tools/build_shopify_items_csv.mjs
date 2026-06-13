@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { parseCsv } from "../scripts/shopify-csv-adapter.mjs";
+import { parseCsv } from "./shopify-csv-adapter.mjs";
 
 const INPUT = "file_items.csv";
 const OUTPUT = "file_items_shopify_import.csv";
