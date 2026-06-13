@@ -1,9 +1,9 @@
 import fs from "node:fs/promises";
 import { parseCsv } from "./shopify-csv-adapter.mjs";
 
-const INPUT = "file_items.csv";
-const OUTPUT = "file_items_shopify_import.csv";
-const REPORT = "file_items_shopify_import_report.json";
+const INPUT = "shopify-data/file_items.csv";
+const OUTPUT = "shopify-data/file_items_shopify_import.csv";
+const REPORT = "shopify-data/file_items_shopify_import_report.json";
 
 const SOURCE_HEADERS = [
   "code",
@@ -158,7 +158,7 @@ const report = {
   duplicateHandlesResolved: 0,
   missingTitleFallbackRows: 0,
   notes: [
-    "Original file_items.csv was not modified.",
+    "Original shopify-data/file_items.csv was not modified.",
     "Handle is generated from code, URL-safe, and unique per row.",
     "Dead stock rows were kept but set Published=false.",
     "Inventory quantity uses nonnegative floor(whse).",

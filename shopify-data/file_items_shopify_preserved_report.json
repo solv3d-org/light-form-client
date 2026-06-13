@@ -1,8 +1,8 @@
 {
-  "source": "file_items.csv",
-  "productOutput": "file_items_shopify_product_preserved.csv",
-  "inventoryOutput": "file_items_shopify_inventory_preserved.csv",
-  "excludedOutput": "file_items_shopify_preserved_excluded.csv",
+  "source": "shopify-data/file_items.csv",
+  "productOutput": "shopify-data/file_items_shopify_product_preserved.csv",
+  "inventoryOutput": "shopify-data/file_items_shopify_inventory_preserved.csv",
+  "excludedOutput": "shopify-data/file_items_shopify_preserved_excluded.csv",
   "sourceRows": 22497,
   "productRows": 22481,
   "inventoryRows": 22481,

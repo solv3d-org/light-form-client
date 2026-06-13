@@ -1,8 +1,8 @@
 import fs from "node:fs/promises";
 import { parseCsv } from "./shopify-csv-adapter.mjs";
 
-const INPUT = "file_items_shopify_import.csv";
-const OUTPUT = "file_items_shopify_inventory_import.csv";
+const INPUT = "shopify-data/file_items_shopify_import.csv";
+const OUTPUT = "shopify-data/file_items_shopify_inventory_import.csv";
 
 const INVENTORY_HEADERS = [
   "Handle",

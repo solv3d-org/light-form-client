@@ -94,7 +94,7 @@ const VARIANTS_QUERY = `
 `;
 
 function usage() {
-  return `usage: node shopify-tools/audit_shopify_against_oxps.mjs [--oxps file.oxps | --csv file_items.csv] [--location "Location Name"] [--include-placeholders] [--output-dir .shopify-audit]
+  return `usage: node shopify-tools/audit_shopify_against_oxps.mjs [--oxps shopify-data/file.oxps | --csv shopify-data/file_items.csv] [--location "Location Name"] [--include-placeholders] [--output-dir .shopify-audit]
 
 env:
   SHOPIFY_STORE_DOMAIN=your-store.myshopify.com
@@ -268,7 +268,7 @@ async function loadLocalRows({ oxpsPath, csvPath, outputDir, includePlaceholders
   let inputCsv = csvPath;
   if (!inputCsv) {
     inputCsv = path.join(outputDir, "oxps_items.csv");
-    await runCommand("python3", ["tools/oxps_inventory_to_csv.py", oxpsPath, inputCsv, "--include-source"]);
+    await runCommand("python3", ["shopify-tools/oxps_inventory_to_csv.py", oxpsPath, inputCsv, "--include-source"]);
   }
 
   const rows = parseCsv(await readFile(inputCsv, "utf8"));
@@ -513,7 +513,7 @@ async function main() {
   }
 
   const outputDir = getArgValue("--output-dir") || DEFAULT_OUTPUT_DIR;
-  const oxpsPath = getArgValue("--oxps") || "file.oxps";
+  const oxpsPath = getArgValue("--oxps") || "shopify-data/file.oxps";
   const csvPath = getArgValue("--csv");
   const locationName = getArgValue("--location") || "";
   const includePlaceholders = hasArg("--include-placeholders");
@@ -526,7 +526,7 @@ async function main() {
   }
 
   if (!csvPath && !(await pathExists(oxpsPath))) {
-    throw new Error(`Missing ${oxpsPath}. Pass --csv file_items.csv to audit from an existing CSV.`);
+    throw new Error(`Missing ${oxpsPath}. Pass --csv shopify-data/file_items.csv to audit from an existing CSV.`);
   }
 
   await mkdir(outputDir, { recursive: true });

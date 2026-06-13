@@ -15,7 +15,7 @@ th{position:sticky;top:0;background:#f4f4f4;z-index:1}
 </style>
 <div id="bar">
   <input id="file" type="file" accept=".csv,text/csv">
-  <button id="load">Load file_items.csv</button>
+  <button id="load">Load shopify-data/file_items.csv</button>
   <span id="meta">No file loaded.</span>
 </div>
 <div id="wrap"><table id="table"></table></div>
@@ -25,7 +25,7 @@ const meta=document.getElementById("meta");
 const table=document.getElementById("table");
 document.getElementById("load").onclick=async()=>{
   try{
-    const res=await fetch("file_items.csv");
+    const res=await fetch("../shopify-data/file_items.csv");
     if(!res.ok) throw new Error(res.status+" "+res.statusText);
     render(await res.text());
   }catch{
