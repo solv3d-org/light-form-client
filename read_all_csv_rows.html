@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CSV Rows</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:16px;color:#111}
+input,button{font:inherit}
+#bar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+#meta{color:#444}
+#wrap{height:calc(100vh - 76px);overflow:auto;border:1px solid #ddd}
+table{border-collapse:collapse;width:max-content;min-width:100%;font-size:12px}
+th,td{border:1px solid #ddd;padding:3px 6px;text-align:left;vertical-align:top;max-width:360px;word-break:break-word}
+th{position:sticky;top:0;background:#f4f4f4;z-index:1}
+</style>
+<div id="bar">
+  <input id="file" type="file" accept=".csv,text/csv">
+  <button id="load">Load file_items.csv</button>
+  <span id="meta">No file loaded.</span>
+</div>
+<div id="wrap"><table id="table"></table></div>
+<script>
+const fileInput=document.getElementById("file");
+const meta=document.getElementById("meta");
+const table=document.getElementById("table");
+document.getElementById("load").onclick=async()=>{
+  try{
+    const res=await fetch("file_items.csv");
+    if(!res.ok) throw new Error(res.status+" "+res.statusText);
+    render(await res.text());
+  }catch{
+    meta.textContent="Fetch failed; choose the CSV file.";
+  }
+};
+fileInput.onchange=async()=>{
+  const file=fileInput.files[0];
+  if(file) render(await file.text());
+};
+function parseCSV(text){
+  const rows=[];let row=[],cell="",quote=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i],n=text[i+1];
+    if(quote){
+      if(c=='"'&&n=='"'){cell+='"';i++}
+      else if(c=='"') quote=false;
+      else cell+=c;
+    }else{
+      if(c=='"') quote=true;
+      else if(c==","){row.push(cell);cell=""}
+      else if(c=="\n"){row.push(cell);rows.push(row);row=[];cell=""}
+      else if(c!="\r") cell+=c;
+    }
+  }
+  if(cell||row.length){row.push(cell);rows.push(row)}
+  return rows;
+}
+function render(text){
+  const rows=parseCSV(text);
+  if(!rows.length){meta.textContent="0 rows";table.replaceChildren();return}
+  const header=rows[0];
+  const data=rows.slice(1);
+  const cols=header.length;
+  const frag=document.createDocumentFragment();
+  const thead=document.createElement("thead");
+  const hr=document.createElement("tr");
+  header.forEach(h=>{const th=document.createElement("th");th.textContent=h;hr.appendChild(th)});
+  thead.appendChild(hr);frag.appendChild(thead);
+  const tbody=document.createElement("tbody");
+  data.forEach((r,idx)=>{
+    const tr=document.createElement("tr");
+    for(let i=0;i<cols;i++){const td=document.createElement("td");td.textContent=r[i]||"";tr.appendChild(td)}
+    tbody.appendChild(tr);
+    if(idx%1000===0) meta.textContent=`Rendering ${idx}/${data.length}`;
+  });
+  frag.appendChild(tbody);
+  table.replaceChildren(frag);
+  meta.textContent=`${data.length} data rows, ${rows.length} CSV lines, ${cols} columns`;
+}
+</script>
+</html>

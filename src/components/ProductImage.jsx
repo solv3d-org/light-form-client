@@ -22,6 +22,14 @@ export default function ProductImage({ src, alt }) {
     };
   }, [src]);
 
+  if (!src) {
+    return (
+      <div className="product-image-placeholder" role="img" aria-label={alt || "Product image pending"}>
+        <span>Image pending</span>
+      </div>
+    );
+  }
+
   return (
     <img
       src={displaySrc}
