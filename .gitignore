@@ -1,4 +1,6 @@
 node_modules
+.env.local
 .playwright-cli
 dist/
+.shopify-import/
 .DS_Store

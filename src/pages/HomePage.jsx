@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import HomeCarousel from "../components/HomeCarousel";
 import MoodSetter from "../components/MoodSetter";
 
-export default function HomePage({ products, catalogMetadata, theme, onThemeChange }) {
+export default function HomePage({ products, catalogMetadata, catalogStatus, theme, onThemeChange }) {
   return (
     <main>
       <section className="hero">
@@ -28,7 +28,11 @@ export default function HomePage({ products, catalogMetadata, theme, onThemeChan
 
       <section className="section">
         <div className="site-shell">
-          <HomeCarousel products={products} catalogMetadata={catalogMetadata} />
+          <HomeCarousel
+            products={products}
+            catalogMetadata={catalogMetadata}
+            catalogStatus={catalogStatus}
+          />
         </div>
       </section>
 
