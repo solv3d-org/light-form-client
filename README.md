@@ -16,15 +16,17 @@ Copy `.env.example` to `.env.local` and set the `VITE_SHOPIFY_*` values to load 
 - Browser uses Storefront API `2026-04`.
 - Cart IDs persist in `localStorage`.
 - Checkout redirects to Shopify hosted checkout through cart `checkoutUrl`.
-- Admin API credentials are script-only and must not use `VITE_`.
+- Admin API credentials live in `../light-form-backend` and must not use `VITE_`.
+- Staff IMS UI is available at `/staff` and calls `VITE_STAFF_API_BASE_URL`.
 
 ## CSV Migration
 
-See [docs/shopify-migration.md](docs/shopify-migration.md) for the current Shopify migration handoff, data locations, auth flow, import order, and audit interpretation.
+See `../light-form-backend/docs/shopify-migration.md` for Shopify migration handoff, data locations, auth flow, import order, and audit interpretation.
 
-Current scripts provide the adapter boundary and validation:
+Run Admin/migration scripts from `../light-form-backend`:
 
 ```sh
+cd ../light-form-backend
 npm run shopify:audit-csv -- path/to/products.csv
 npm run shopify:import-products -- path/to/products.csv
 npm run shopify:import-products -- path/to/products.csv --commit

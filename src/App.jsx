@@ -9,13 +9,15 @@ import AboutPage from "./pages/AboutPage";
 import HomePage from "./pages/HomePage";
 import ServicesPage from "./pages/ServicesPage";
 import ShopPage from "./pages/ShopPage";
+import StaffPage from "./pages/StaffPage";
 import ProductPage from "./pages/ProductPage";
 
 const pageTitles = {
   "/": "Light + Form | Landing Page",
   "/shop": "Light + Form | Shop",
   "/services": "Light + Form | Our Services",
-  "/about": "Light + Form | About Us"
+  "/about": "Light + Form | About Us",
+  "/staff": "Light + Form | Staff IMS"
 };
 
 function AppRoutes({ catalog, catalogStatus, theme, onThemeChange }) {
@@ -56,6 +58,7 @@ function AppRoutes({ catalog, catalogStatus, theme, onThemeChange }) {
         <Route path="/products/:handle" element={<ProductPage products={catalog.products} />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/staff" element={<StaffPage />} />
       </Routes>
     </SiteLayout>
   );

@@ -6,10 +6,6 @@
   "type": "module",
   "scripts": {
     "scrape:catalog": "node scripts/scrape-light-pro-catalog.mjs",
-    "shopify:audit-csv": "node shopify-tools/audit-shopify-csv.mjs",
-    "shopify:audit-sample": "node shopify-tools/audit-shopify-csv.mjs shopify-tools/fixtures/shopify-products.sample.csv",
-    "shopify:audit-remote": "node shopify-tools/audit_shopify_against_oxps.mjs",
-    "shopify:import-products": "node shopify-tools/import-shopify-products.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
