@@ -1057,6 +1057,9 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-cart-form input,
 .staff-cart-form textarea,
 .staff-search input,
+.staff-product-form input,
+.staff-product-edit input,
+.staff-stock-form input,
 .staff-user-form input,
 .staff-user-form select,
 .staff-user-controls input,
@@ -1075,6 +1078,8 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-cart-form input::placeholder,
 .staff-cart-form textarea::placeholder,
 .staff-search input::placeholder,
+.staff-product-form input::placeholder,
+.staff-product-edit input::placeholder,
 .staff-user-form input::placeholder,
 .staff-user-controls input::placeholder {
   color: color-mix(in srgb, var(--text-soft) 72%, transparent);
@@ -1161,6 +1166,20 @@ html[data-theme="warm"] .staff-user-controls select {
   gap: 10px;
 }
 
+.staff-product-form,
+.staff-product-edit {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.staff-product-edit {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
 .staff-result-list,
 .staff-order-list,
 .staff-user-list,
@@ -1205,6 +1224,7 @@ html[data-theme="warm"] .staff-user-controls select {
 }
 
 .staff-result div,
+.staff-result-actions,
 .staff-order div,
 .staff-audit-row div,
 .staff-user-row div,
@@ -1246,10 +1266,22 @@ html[data-theme="warm"] .staff-user-controls select {
 }
 
 .staff-qty,
-.staff-order-actions {
+.staff-order-actions,
+.staff-result-actions {
   display: flex !important;
   align-items: center;
   gap: 8px;
+}
+
+.staff-stock-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staff-stock-form input {
+  width: 76px;
+  padding: 8px 9px;
 }
 
 .staff-qty button {
@@ -1465,7 +1497,9 @@ html[data-theme="warm"] .staff-user-controls select {
   .staff-user-form,
   .staff-user-controls,
   .staff-permission-grid,
-  .staff-field-grid {
+  .staff-field-grid,
+  .staff-product-form,
+  .staff-product-edit {
     grid-template-columns: 1fr;
   }
 }

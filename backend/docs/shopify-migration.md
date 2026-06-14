@@ -34,8 +34,11 @@ Required Admin API scopes:
 
 ```txt
 read_products
+write_products
 read_inventory
-read_locations
+write_inventory
+read_draft_orders
+write_draft_orders
 ```
 
 ## 2026 Shopify Auth Flow
@@ -61,8 +64,8 @@ Relevant source/import data lives in `shopify-data/`:
 ```txt
 shopify-data/file.oxps
 shopify-data/file_items.csv
-shopify-data/file_items_shopify_product_preserved.csv
-shopify-data/file_items_shopify_inventory_preserved.csv
+shopify-data/file_items_shopify_product_preserved_13_june_2026.csv
+shopify-data/file_items_shopify_inventory_preserved_13_june_2026.csv
 shopify-data/file_items_shopify_preserved_excluded.csv
 shopify-data/file_items_shopify_preserved_report.json
 ```
@@ -93,10 +96,10 @@ Current usable files:
 
 ```txt
 Product import:
-shopify-data/file_items_shopify_product_preserved.csv
+shopify-data/file_items_shopify_product_preserved_13_june_2026.csv
 
 Inventory import:
-shopify-data/file_items_shopify_inventory_preserved.csv
+shopify-data/file_items_shopify_inventory_preserved_13_june_2026.csv
 ```
 
 Use Shopify's product importer for the product CSV. Use Shopify's inventory importer for the inventory CSV.
@@ -173,8 +176,8 @@ missingTitleFallbackRows: 9
 Outputs:
 
 ```txt
-shopify-data/file_items_shopify_product_preserved.csv
-shopify-data/file_items_shopify_inventory_preserved.csv
+shopify-data/file_items_shopify_product_preserved_13_june_2026.csv
+shopify-data/file_items_shopify_inventory_preserved_13_june_2026.csv
 shopify-data/file_items_shopify_preserved_excluded.csv
 shopify-data/file_items_shopify_preserved_report.json
 ```

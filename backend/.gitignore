@@ -4,4 +4,5 @@
 .shopify-import/
 data/*.json
 data/*.jsonl
+data/*.csv
 !data/.gitkeep

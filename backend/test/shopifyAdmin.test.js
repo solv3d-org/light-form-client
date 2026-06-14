@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDraftOrder, shopifyAdminRest } from "../src/shopifyAdmin.js";
+import { archiveProduct, createDraftOrder, createProduct, setInventoryOnHand, shopifyAdminRest } from "../src/shopifyAdmin.js";
 
 const config = {
   shopify: {
@@ -87,4 +87,94 @@ test("Shopify REST can use client credentials token", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Shopify product create sends product, variant, and inventory mutations", async () => {
+  const originalFetch = globalThis.fetch;
+  const operations = [];
+
+  globalThis.fetch = async (url, options = {}) => {
+    assert.equal(String(url), "https://example.myshopify.com/admin/api/2026-04/graphql.json");
+    const body = JSON.parse(options.body);
+    operations.push(body);
+
+    if (body.query.includes("ProductCreate")) {
+      assert.equal(body.variables.input.title, "Lamp");
+      assert.equal(body.variables.input.handle, "lamp");
+      return new Response(
+        JSON.stringify({
+          data: {
+            productCreate: {
+              product: {
+                id: "gid://shopify/Product/1",
+                title: "Lamp",
+                handle: "lamp",
+                variants: {
+                  nodes: [{ id: "gid://shopify/ProductVariant/2", sku: "", price: "0", inventoryItem: { id: "gid://shopify/InventoryItem/3" } }]
+                }
+              },
+              userErrors: []
+            }
+          }
+        }),
+        { status: 200 }
+      );
+    }
+
+    if (body.query.includes("ProductVariantsBulkUpdate")) {
+      assert.equal(body.variables.productId, "gid://shopify/Product/1");
+      assert.equal(body.variables.variants[0].price, "55");
+      assert.deepEqual(body.variables.variants[0].inventoryItem, { sku: "SKU-1" });
+      return new Response(JSON.stringify({ data: { productVariantsBulkUpdate: { productVariants: [], userErrors: [] } } }), { status: 200 });
+    }
+
+    assert.equal(body.variables.input.quantities[0].quantity, 7);
+    assert.equal(body.variables.input.quantities[0].locationId, "gid://shopify/Location/9");
+    return new Response(
+      JSON.stringify({ data: { inventorySetQuantities: { inventoryAdjustmentGroup: { createdAt: "now", reason: "correction" }, userErrors: [] } } }),
+      { status: 200 }
+    );
+  };
+
+  try {
+    await createProduct(
+      { ...config, catalog: { shopifyLocationId: "gid://shopify/Location/9" } },
+      { title: "Lamp", handle: "lamp", sku: "SKU-1", price: "55", onHand: 7 }
+    );
+    assert.equal(operations.length, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Shopify archive product sets status archived", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body);
+    assert.equal(body.variables.input.id, "gid://shopify/Product/1");
+    assert.equal(body.variables.input.status, "ARCHIVED");
+    return new Response(
+      JSON.stringify({
+        data: {
+          productUpdate: {
+            product: { id: "gid://shopify/Product/1", title: "Lamp", handle: "lamp", variants: { nodes: [] } },
+            userErrors: []
+          }
+        }
+      }),
+      { status: 200 }
+    );
+  };
+
+  try {
+    await archiveProduct(config, "gid://shopify/Product/1");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Shopify inventory set requires an inventory item and location", async () => {
+  await assert.rejects(() => setInventoryOnHand(config, { onHand: 1 }), /inventoryItemId required/);
+  await assert.rejects(() => setInventoryOnHand(config, { inventoryItemId: "gid://shopify/InventoryItem/1", onHand: 1 }), /SHOPIFY_LOCATION_ID/);
 });

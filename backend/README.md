@@ -11,6 +11,8 @@ npm run dev
 
 The first start bootstraps one admin if `data/staff-users.json` is empty and `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` are set.
 
+Set `STAFF_CATALOG_SOURCE=csv` for MVP/local testing or `STAFF_CATALOG_SOURCE=shopify` for live Admin API mode. CSV mode copies the dated preserved snapshots into `data/local-shopify-products.csv` and `data/local-shopify-inventory.csv` if those working files are missing, then mutates only the working copies.
+
 ## Roles
 
 | Role | Access |
@@ -35,6 +37,11 @@ POST /api/staff/users
 PATCH /api/staff/users/:id
 GET /api/audit?limit=100
 GET /api/inventory/search?q=sku-or-title
+POST /api/inventory/set-on-hand
+GET /api/products/search?q=sku-or-title
+POST /api/products
+PATCH /api/products/:id
+DELETE /api/products/:id
 POST /api/orders/draft
 GET /api/orders?status=pending
 GET /api/orders?status=completed
@@ -74,6 +81,6 @@ Customer-hidden fields live in local `data/staff-orders.json`, not public fronte
 
 ## Shopify
 
-Uses Admin GraphQL for inventory search and Admin REST DraftOrder endpoints for draft orders, invoices, and completion.
+Uses Admin GraphQL for product search/CRUD and inventory writes. Uses Admin REST DraftOrder endpoints for draft orders, invoices, and completion.
 
-Required Admin scopes: `read_products`, `read_inventory`, `read_draft_orders`, `write_draft_orders`.
+Required Admin scopes: `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_draft_orders`, `write_draft_orders`.

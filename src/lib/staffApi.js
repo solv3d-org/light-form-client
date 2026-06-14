@@ -80,6 +80,38 @@ export function searchStaffInventory(query) {
   return staffRequest(`/api/inventory/search?${params.toString()}`);
 }
 
+export function searchStaffProducts(query) {
+  const params = new URLSearchParams({ q: query, first: "25" });
+  return staffRequest(`/api/products/search?${params.toString()}`);
+}
+
+export function createStaffProduct(input) {
+  return staffRequest("/api/products", {
+    method: "POST",
+    body: input
+  });
+}
+
+export function updateStaffProduct(productId, input) {
+  return staffRequest(`/api/products/${encodeURIComponent(productId)}`, {
+    method: "PATCH",
+    body: input
+  });
+}
+
+export function archiveStaffProduct(productId) {
+  return staffRequest(`/api/products/${encodeURIComponent(productId)}`, {
+    method: "DELETE"
+  });
+}
+
+export function setStaffInventoryOnHand(input) {
+  return staffRequest("/api/inventory/set-on-hand", {
+    method: "POST",
+    body: input
+  });
+}
+
 export function createStaffDraftOrder(input) {
   return staffRequest("/api/orders/draft", {
     method: "POST",

@@ -5,20 +5,14 @@ import { getConfig, assertRuntimeConfig, isShopifyAdminConfigured } from "./conf
 import { HttpError, getBearerToken, getCorsHeaders, readJson, sendError, sendJson } from "./http.js";
 import { getEffectivePermissions, getRolePermissions, hasPermission, normalizePermissionOverrides, PERMISSIONS, ROLES } from "./rbac.js";
 import { StaffStore } from "./store.js";
-import {
-  completeDraftOrder,
-  createDraftOrder,
-  deleteDraftOrder,
-  getDraftOrder,
-  searchInventory,
-  sendDraftOrderInvoice,
-  summarizeDraftOrder
-} from "./shopifyAdmin.js";
+import { createCatalogProvider } from "./catalog.js";
+import { summarizeDraftOrder } from "./shopifyAdmin.js";
 
 const config = getConfig();
 assertRuntimeConfig(config);
 
 const store = new StaffStore(config.dataDir);
+const catalogProvider = createCatalogProvider(config);
 const bootstrappedUser = store.ensureBootstrapAdmin(config);
 
 if (bootstrappedUser) {
@@ -131,6 +125,7 @@ function mapStoreError(error) {
 const routes = [
   route("GET", "/health", { auth: false }, async () => ({
     ok: true,
+    catalogSource: config.catalog.source,
     shopifyConfigured: isShopifyAdminConfigured(config),
     users: store.listUsers().length
   })),
@@ -176,14 +171,37 @@ const routes = [
   }),
 
   route("GET", "/api/inventory/search", { permission: "inventory:read" }, async ({ url }) => ({
-    variants: await searchInventory(config, {
+    variants: await catalogProvider.searchInventory({
       query: url.searchParams.get("q") || "",
       first: url.searchParams.get("first") || 25
     })
   })),
 
   route("POST", "/api/inventory/search", { permission: "inventory:read" }, async ({ body }) => ({
-    variants: await searchInventory(config, body)
+    variants: await catalogProvider.searchInventory(body)
+  })),
+
+  route("POST", "/api/inventory/set-on-hand", { permission: "inventory:adjust" }, async ({ body }) => ({
+    product: await catalogProvider.setInventoryOnHand(body)
+  })),
+
+  route("GET", "/api/products/search", { permission: "inventory:read" }, async ({ url }) => ({
+    products: await catalogProvider.searchProducts({
+      query: url.searchParams.get("q") || "",
+      first: url.searchParams.get("first") || 25
+    })
+  })),
+
+  route("POST", "/api/products", { permission: "inventory:adjust" }, async ({ body }) => ({
+    product: await catalogProvider.createProduct(body)
+  })),
+
+  route("PATCH", "/api/products/:id", { permission: "inventory:adjust" }, async ({ params, body }) => ({
+    product: await catalogProvider.updateProduct(params.id, body)
+  })),
+
+  route("DELETE", "/api/products/:id", { permission: "inventory:adjust" }, async ({ params }) => ({
+    product: await catalogProvider.archiveProduct(params.id)
   })),
 
   route("GET", "/api/orders", { permission: "order:read" }, async ({ url }) => ({
@@ -195,14 +213,14 @@ const routes = [
     if (!order) throw new HttpError(404, "Order record not found.");
     return {
       order,
-      shopifyDraftOrder: summarizeDraftOrder(await getDraftOrder(config, order.shopifyDraftOrderId))
+      shopifyDraftOrder: summarizeDraftOrder(await catalogProvider.getDraftOrder(order.shopifyDraftOrderId))
     };
   }),
 
   route("POST", "/api/orders/draft", { permission: "order:create" }, async ({ body, user }) => {
     assertDiscountAccess(user, body);
     assertCostAccess(user, body.internal);
-    const draftOrder = await createDraftOrder(config, body);
+    const draftOrder = await catalogProvider.createDraftOrder(body);
     const order = store.createOrderRecord({ draftOrder, input: body, actor: user });
     return {
       order,
@@ -225,7 +243,7 @@ const routes = [
   route("POST", "/api/orders/:id/send-invoice", { permission: "invoice:send" }, async ({ params, body, user }) => {
     const order = store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
-    const draftOrder = await sendDraftOrderInvoice(config, order.shopifyDraftOrderId, body);
+    const draftOrder = await catalogProvider.sendDraftOrderInvoice(order.shopifyDraftOrderId, body);
     return {
       order: store.updateOrder(order.id, { invoiceSentAt: new Date().toISOString() }, user),
       shopifyDraftOrder: summarizeDraftOrder(draftOrder)
@@ -235,7 +253,7 @@ const routes = [
   route("POST", "/api/orders/:id/complete", { permission: "order:complete" }, async ({ params, body, user }) => {
     const order = store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
-    const draftOrder = await completeDraftOrder(config, order.shopifyDraftOrderId, {
+    const draftOrder = await catalogProvider.completeDraftOrder(order.shopifyDraftOrderId, {
       paymentPending: body.paymentPending === true
     });
     return {
@@ -251,7 +269,7 @@ const routes = [
   route("POST", "/api/orders/:id/cancel", { permission: "order:cancel" }, async ({ params, user }) => {
     const order = store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
-    await deleteDraftOrder(config, order.shopifyDraftOrderId);
+    await catalogProvider.deleteDraftOrder(order.shopifyDraftOrderId);
     return {
       order: store.updateOrder(order.id, {
         status: "canceled",

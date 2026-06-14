@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  archiveStaffProduct,
   completeStaffOrder,
+  createStaffProduct,
   createStaffUser,
   createStaffDraftOrder,
   getStaffToken,
@@ -12,7 +14,9 @@ import {
   saveStaffToken,
   searchStaffInventory,
   sendStaffInvoice,
+  setStaffInventoryOnHand,
   staffLogin,
+  updateStaffProduct,
   updateStaffUser
 } from "../lib/staffApi";
 
@@ -38,6 +42,16 @@ const EMPTY_INTERNAL = {
   approvalRequired: false,
   costPrice: "",
   grossMargin: ""
+};
+
+const EMPTY_PRODUCT_FORM = {
+  title: "",
+  handle: "",
+  vendor: "",
+  productType: "",
+  sku: "",
+  price: "",
+  onHand: "0"
 };
 
 function moneyLabel(value) {
@@ -377,14 +391,32 @@ function StaffField({ label, children }) {
   );
 }
 
-function InventorySearch({ canAdd, onAdd }) {
+function productDraftFromVariant(variant) {
+  const product = variant.catalogProduct || {};
+  return {
+    id: product.id || variant.product?.id || variant.id,
+    title: product.title || variant.product?.title || variant.title || "",
+    handle: product.handle || variant.product?.handle || "",
+    vendor: product.vendor || variant.product?.vendor || "",
+    productType: product.productType || variant.product?.productType || "",
+    sku: product.sku || variant.sku || "",
+    price: product.price || variant.price || "",
+    onHand: String(product.inventory?.onHand ?? variant.inventory?.onHand ?? 0),
+    variantId: product.shopifyVariantId || variant.id,
+    inventoryItemId: product.inventoryItemId || variant.inventory?.inventoryItemId || ""
+  };
+}
+
+function InventorySearch({ canAdd, canManage, onAdd }) {
   const [query, setQuery] = useState("");
   const [variants, setVariants] = useState([]);
+  const [productForm, setProductForm] = useState(EMPTY_PRODUCT_FORM);
+  const [editing, setEditing] = useState(null);
+  const [stockDrafts, setStockDrafts] = useState({});
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
-  const handleSearch = async (event) => {
-    event.preventDefault();
+  const loadSearch = async () => {
     setStatus("loading");
     setError("");
 
@@ -394,6 +426,90 @@ function InventorySearch({ canAdd, onAdd }) {
     } catch (nextError) {
       setError(nextError.message);
     } finally {
+      setStatus("idle");
+    }
+  };
+
+  const handleSearch = async (event) => {
+    event.preventDefault();
+    await loadSearch();
+  };
+
+  const setProductValue = (key, value) => {
+    setProductForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const setEditingValue = (key, value) => {
+    setEditing((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleCreateProduct = async (event) => {
+    event.preventDefault();
+    setStatus("saving");
+    setError("");
+    try {
+      await createStaffProduct(productForm);
+      setProductForm(EMPTY_PRODUCT_FORM);
+      await loadSearch();
+    } catch (nextError) {
+      setError(nextError.message);
+      setStatus("idle");
+    }
+  };
+
+  const handleSaveProduct = async (event) => {
+    event.preventDefault();
+    if (!editing) return;
+    setStatus("saving");
+    setError("");
+    try {
+      await updateStaffProduct(editing.id, {
+        title: editing.title,
+        handle: editing.handle,
+        vendor: editing.vendor,
+        productType: editing.productType,
+        sku: editing.sku,
+        price: editing.price,
+        onHand: editing.onHand,
+        variantId: editing.variantId,
+        inventoryItemId: editing.inventoryItemId
+      });
+      setEditing(null);
+      await loadSearch();
+    } catch (nextError) {
+      setError(nextError.message);
+      setStatus("idle");
+    }
+  };
+
+  const handleArchiveProduct = async (variant) => {
+    setStatus("saving");
+    setError("");
+    try {
+      await archiveStaffProduct(productDraftFromVariant(variant).id);
+      await loadSearch();
+    } catch (nextError) {
+      setError(nextError.message);
+      setStatus("idle");
+    }
+  };
+
+  const handleSetOnHand = async (event, variant) => {
+    event.preventDefault();
+    const draft = productDraftFromVariant(variant);
+    setStatus("saving");
+    setError("");
+    try {
+      await setStaffInventoryOnHand({
+        id: draft.id,
+        sku: draft.sku,
+        variantId: draft.variantId,
+        inventoryItemId: draft.inventoryItemId,
+        onHand: stockDrafts[variant.id] ?? draft.onHand
+      });
+      await loadSearch();
+    } catch (nextError) {
+      setError(nextError.message);
       setStatus("idle");
     }
   };
@@ -412,25 +528,84 @@ function InventorySearch({ canAdd, onAdd }) {
           Search
         </button>
       </form>
+      {canManage && (
+        <form className="staff-product-form" onSubmit={handleCreateProduct}>
+          <input value={productForm.title} placeholder="Title" onChange={(event) => setProductValue("title", event.target.value)} required />
+          <input value={productForm.handle} placeholder="Handle" onChange={(event) => setProductValue("handle", event.target.value)} />
+          <input value={productForm.sku} placeholder="SKU" onChange={(event) => setProductValue("sku", event.target.value)} />
+          <input value={productForm.vendor} placeholder="Vendor" onChange={(event) => setProductValue("vendor", event.target.value)} />
+          <input value={productForm.productType} placeholder="Type" onChange={(event) => setProductValue("productType", event.target.value)} />
+          <input value={productForm.price} placeholder="Price" onChange={(event) => setProductValue("price", event.target.value)} />
+          <input type="number" min="0" value={productForm.onHand} placeholder="On hand" onChange={(event) => setProductValue("onHand", event.target.value)} />
+          <button className="button-secondary" type="submit" disabled={status === "saving"}>
+            Create product
+          </button>
+        </form>
+      )}
       {error && <p className="staff-error">{error}</p>}
       <div className="staff-result-list">
-        {variants.map((variant) => (
-          <article className="staff-result" key={variant.id}>
-            <div>
-              <strong>{variant.product?.title || "Product"}</strong>
-              <span>{variant.title === "Default Title" ? variant.sku || "Default" : variant.title}</span>
-              <small>
-                {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
-              </small>
-            </div>
-            {canAdd && (
-              <button className="button-inline" type="button" onClick={() => onAdd(variant)}>
-                Add
-              </button>
-            )}
-          </article>
-        ))}
+        {variants.map((variant) => {
+          const draft = productDraftFromVariant(variant);
+          const stockValue = stockDrafts[variant.id] ?? draft.onHand;
+          return (
+            <article className="staff-result" key={variant.id}>
+              <div>
+                <strong>{variant.product?.title || "Product"}</strong>
+                <span>{variant.title === "Default Title" ? variant.sku || "Default" : variant.title}</span>
+                <small>
+                  {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
+                </small>
+              </div>
+              <div className="staff-result-actions">
+                {canAdd && (
+                  <button className="button-inline" type="button" onClick={() => onAdd(variant)}>
+                    Add
+                  </button>
+                )}
+                {canManage && (
+                  <>
+                    <form className="staff-stock-form" onSubmit={(event) => handleSetOnHand(event, variant)}>
+                      <input
+                        type="number"
+                        min="0"
+                        value={stockValue}
+                        aria-label="On hand"
+                        onChange={(event) => setStockDrafts((current) => ({ ...current, [variant.id]: event.target.value }))}
+                      />
+                      <button className="button-inline" type="submit" disabled={status === "saving"}>
+                        Set stock
+                      </button>
+                    </form>
+                    <button className="button-inline" type="button" disabled={status === "saving"} onClick={() => setEditing(draft)}>
+                      Edit
+                    </button>
+                    <button className="button-inline" type="button" disabled={status === "saving"} onClick={() => handleArchiveProduct(variant)}>
+                      Archive
+                    </button>
+                  </>
+                )}
+              </div>
+            </article>
+          );
+        })}
       </div>
+      {editing && (
+        <form className="staff-product-edit" onSubmit={handleSaveProduct}>
+          <input value={editing.title} placeholder="Title" onChange={(event) => setEditingValue("title", event.target.value)} required />
+          <input value={editing.handle} placeholder="Handle" onChange={(event) => setEditingValue("handle", event.target.value)} />
+          <input value={editing.sku} placeholder="SKU" onChange={(event) => setEditingValue("sku", event.target.value)} />
+          <input value={editing.vendor} placeholder="Vendor" onChange={(event) => setEditingValue("vendor", event.target.value)} />
+          <input value={editing.productType} placeholder="Type" onChange={(event) => setEditingValue("productType", event.target.value)} />
+          <input value={editing.price} placeholder="Price" onChange={(event) => setEditingValue("price", event.target.value)} />
+          <input type="number" min="0" value={editing.onHand} placeholder="On hand" onChange={(event) => setEditingValue("onHand", event.target.value)} />
+          <button className="button-secondary" type="submit" disabled={status === "saving"}>
+            Save product
+          </button>
+          <button className="button-inline" type="button" onClick={() => setEditing(null)}>
+            Cancel
+          </button>
+        </form>
+      )}
     </section>
   );
 }
@@ -465,7 +640,7 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
     try {
       const payload = await createStaffDraftOrder({
         email,
-        lineItems: cart.map((item) => ({ variantId: item.variantId, quantity: item.quantity })),
+        lineItems: cart.map((item) => ({ variantId: item.variantId, title: item.title, price: item.price, quantity: item.quantity })),
         fulfillment,
         shippingAddress: fulfillment.type === "delivery" ? shippingAddress : undefined,
         internal: {
@@ -835,6 +1010,7 @@ export default function StaffPage() {
   const canReadInventory = hasStaffPermission(staff, "inventory:read");
   const canReadOrders = hasStaffPermission(staff, "order:read");
   const canCreateOrders = hasStaffPermission(staff, "order:create");
+  const canAdjustInventory = hasStaffPermission(staff, "inventory:adjust");
   const canManageStaff = hasStaffPermission(staff, "user:manage");
   const canReadAudit = hasStaffPermission(staff, "audit:read");
 
@@ -856,7 +1032,7 @@ export default function StaffPage() {
         </div>
         <div className="staff-layout">
           <div className="staff-main-column">
-            {canReadInventory && <InventorySearch canAdd={canCreateOrders} onAdd={addVariant} />}
+            {canReadInventory && <InventorySearch canAdd={canCreateOrders} canManage={canAdjustInventory} onAdd={addVariant} />}
             {canReadOrders && <OrdersPanel staff={staff} refreshKey={refreshKey} />}
             {canManageStaff && <StaffUsersPanel />}
             {canReadAudit && <AuditLogPanel />}

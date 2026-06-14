@@ -435,6 +435,7 @@ export async function searchInventory(config, { query = "", first = 25 } = {}) {
       product: variant.product,
       inventory: {
         tracked: Boolean(variant.inventoryItem?.tracked),
+        inventoryItemId: variant.inventoryItem?.id || "",
         available,
         onHand,
         levels: levels.map((level) => ({

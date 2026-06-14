@@ -14,6 +14,7 @@ Root `npm run dev` starts Vite and `backend/src/server.js`. `make dev`, `make de
 Copy `.env.example` to `.env.local` and set the `VITE_SHOPIFY_*` values to load Shopify products and cart checkout. Without those values, the app uses the bundled preview catalog and disables checkout.
 
 Backend config lives in `backend/.env.local`; copy `backend/.env.example` if needed.
+Set backend `STAFF_CATALOG_SOURCE=csv` for local MVP CRUD against working CSV copies, or `STAFF_CATALOG_SOURCE=shopify` for live Shopify Admin CRUD.
 
 ## Staff IMS
 

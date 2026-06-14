@@ -2,8 +2,8 @@ import fs from "node:fs/promises";
 import { parseCsv } from "./shopify-csv-adapter.mjs";
 
 const SOURCE = "shopify-data/file_items.csv";
-const PRODUCT_OUTPUT = "shopify-data/file_items_shopify_product_preserved.csv";
-const INVENTORY_OUTPUT = "shopify-data/file_items_shopify_inventory_preserved.csv";
+const PRODUCT_OUTPUT = "shopify-data/file_items_shopify_product_preserved_13_june_2026.csv";
+const INVENTORY_OUTPUT = "shopify-data/file_items_shopify_inventory_preserved_13_june_2026.csv";
 const EXCLUDED_OUTPUT = "shopify-data/file_items_shopify_preserved_excluded.csv";
 const REPORT_OUTPUT = "shopify-data/file_items_shopify_preserved_report.json";
 const DEFAULT_INVENTORY_TEMPLATE = "/Users/gongahkia/Downloads/inventory_bin_new_on_hand_template.csv";
