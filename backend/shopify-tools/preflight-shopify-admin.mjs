@@ -72,33 +72,38 @@ function assertDirective(schema, name, args) {
   assertHasFields(`Directive @${name} args`, directive.args, args);
 }
 
-const config = getConfig();
-if (!config.catalog.shopifyLocationId) throw new Error("SHOPIFY_LOCATION_ID required for live preflight.");
+try {
+  const config = getConfig();
+  if (!config.catalog.shopifyLocationId) throw new Error("SHOPIFY_LOCATION_ID required for live preflight.");
 
-const data = await shopifyAdminGraphql(config, PREFLIGHT_QUERY, {
-  locationId: config.catalog.shopifyLocationId
-});
+  const data = await shopifyAdminGraphql(config, PREFLIGHT_QUERY, {
+    locationId: config.catalog.shopifyLocationId
+  });
 
-assertMutation(data.__schema, "productCreate", ["product"]);
-assertMutation(data.__schema, "productUpdate", ["product"]);
-assertMutation(data.__schema, "productVariantsBulkUpdate", ["productId", "variants"]);
-assertMutation(data.__schema, "inventorySetQuantities", ["input"]);
-assertDirective(data.__schema, "idempotent", ["key"]);
-assertHasFields("ProductCreateInput", data.productCreateInput?.inputFields, ["title", "handle", "descriptionHtml", "vendor", "productType", "tags", "status"]);
-assertHasFields("ProductUpdateInput", data.productUpdateInput?.inputFields, ["id", "title", "handle", "descriptionHtml", "vendor", "productType", "tags", "status"]);
-assertHasFields("ProductVariantsBulkInput", data.productVariantsBulkInput?.inputFields, ["id", "price", "compareAtPrice", "barcode", "inventoryItem"]);
-assertHasFields("InventorySetQuantitiesInput", data.inventorySetQuantitiesInput?.inputFields, ["name", "reason", "referenceDocumentUri", "ignoreCompareQuantity", "quantities"]);
+  assertMutation(data.__schema, "productCreate", ["product"]);
+  assertMutation(data.__schema, "productUpdate", ["product"]);
+  assertMutation(data.__schema, "productVariantsBulkUpdate", ["productId", "variants"]);
+  assertMutation(data.__schema, "inventorySetQuantities", ["input"]);
+  assertDirective(data.__schema, "idempotent", ["key"]);
+  assertHasFields("ProductCreateInput", data.productCreateInput?.inputFields, ["title", "handle", "descriptionHtml", "vendor", "productType", "tags", "status"]);
+  assertHasFields("ProductUpdateInput", data.productUpdateInput?.inputFields, ["id", "title", "handle", "descriptionHtml", "vendor", "productType", "tags", "status"]);
+  assertHasFields("ProductVariantsBulkInput", data.productVariantsBulkInput?.inputFields, ["id", "price", "compareAtPrice", "barcode", "inventoryItem"]);
+  assertHasFields("InventorySetQuantitiesInput", data.inventorySetQuantitiesInput?.inputFields, ["name", "reason", "referenceDocumentUri", "ignoreCompareQuantity", "quantities"]);
 
-if (data.location?.__typename !== "Location") throw new Error("SHOPIFY_LOCATION_ID did not resolve to a Location.");
-if (data.location?.isActive === false) throw new Error("SHOPIFY_LOCATION_ID resolves to an inactive Location.");
+  if (data.location?.__typename !== "Location") throw new Error("SHOPIFY_LOCATION_ID did not resolve to a Location.");
+  if (data.location?.isActive === false) throw new Error("SHOPIFY_LOCATION_ID resolves to an inactive Location.");
 
-console.log(JSON.stringify({
-  ok: true,
-  shop: config.shopify.storeDomain,
-  apiVersion: config.shopify.apiVersion,
-  location: {
-    id: data.location.id,
-    name: data.location.name,
-    isActive: data.location.isActive
-  }
-}));
+  console.log(JSON.stringify({
+    ok: true,
+    shop: config.shopify.storeDomain,
+    apiVersion: config.shopify.apiVersion,
+    location: {
+      id: data.location.id,
+      name: data.location.name,
+      isActive: data.location.isActive
+    }
+  }));
+} catch (error) {
+  console.error(`preflight failed: ${error.message}`);
+  process.exit(1);
+}
