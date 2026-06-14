@@ -20,7 +20,8 @@
     "shopify:audit-csv": "npm --workspace backend run shopify:audit-csv --",
     "shopify:audit-sample": "npm --workspace backend run shopify:audit-sample",
     "shopify:audit-remote": "npm --workspace backend run shopify:audit-remote --",
-    "shopify:import-products": "npm --workspace backend run shopify:import-products --"
+    "shopify:import-products": "npm --workspace backend run shopify:import-products --",
+    "shopify:preflight": "npm --workspace backend run shopify:preflight"
   },
   "keywords": [
     "react",

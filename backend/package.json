@@ -9,6 +9,7 @@
     "shopify:audit-sample": "node shopify-tools/audit-shopify-csv.mjs shopify-tools/fixtures/shopify-products.sample.csv",
     "shopify:audit-remote": "node shopify-tools/audit_shopify_against_oxps.mjs",
     "shopify:import-products": "node shopify-tools/import-shopify-products.mjs",
+    "shopify:preflight": "node shopify-tools/preflight-shopify-admin.mjs",
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "check": "node --check src/*.js",

@@ -28,3 +28,15 @@ test("invalid catalog source fails runtime config", () => {
 test("shopify catalog source requires Shopify Admin credentials", () => {
   assert.throws(() => assertRuntimeConfig(baseConfig("shopify")), /SHOPIFY_STORE_DOMAIN/);
 });
+
+test("shopify catalog source requires a location for inventory writes", () => {
+  const config = baseConfig("shopify");
+  config.shopify = {
+    storeDomain: "example.myshopify.com",
+    adminAccessToken: "shpat_token",
+    clientId: "",
+    clientSecret: "",
+    apiVersion: "2026-04"
+  };
+  assert.throws(() => assertRuntimeConfig(config), /SHOPIFY_LOCATION_ID/);
+});

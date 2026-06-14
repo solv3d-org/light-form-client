@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { HttpError } from "./http.js";
 import { isShopifyAdminConfigured } from "./config.js";
 
@@ -47,8 +48,8 @@ const PRODUCT_VARIANTS_QUERY = `
 `;
 
 const PRODUCT_CREATE_MUTATION = `
-  mutation ProductCreate($input: ProductInput!) {
-    productCreate(input: $input) {
+  mutation ProductCreate($product: ProductCreateInput!) {
+    productCreate(product: $product) {
       product {
         id
         title
@@ -77,8 +78,8 @@ const PRODUCT_CREATE_MUTATION = `
 `;
 
 const PRODUCT_UPDATE_MUTATION = `
-  mutation ProductUpdate($input: ProductInput!) {
-    productUpdate(input: $input) {
+  mutation ProductUpdate($product: ProductUpdateInput!) {
+    productUpdate(product: $product) {
       product {
         id
         title
@@ -130,11 +131,16 @@ const PRODUCT_VARIANTS_BULK_UPDATE_MUTATION = `
 `;
 
 const INVENTORY_SET_QUANTITIES_MUTATION = `
-  mutation InventorySetQuantities($input: InventorySetQuantitiesInput!) {
-    inventorySetQuantities(input: $input) {
+  mutation InventorySetQuantities($input: InventorySetQuantitiesInput!, $idempotencyKey: String!) {
+    inventorySetQuantities(input: $input) @idempotent(key: $idempotencyKey) {
       inventoryAdjustmentGroup {
         createdAt
         reason
+        referenceDocumentUri
+        changes {
+          name
+          delta
+        }
       }
       userErrors {
         field
@@ -281,6 +287,7 @@ function productInput(input, id = undefined) {
 function variantInput(input, variantId) {
   const next = cleanObject({
     id: variantId,
+    barcode: input.barcode == null ? undefined : String(input.barcode),
     price: input.price == null || input.price === "" ? undefined : String(input.price),
     compareAtPrice: input.compareAtPrice == null || input.compareAtPrice === "" ? undefined : String(input.compareAtPrice),
     inventoryItem: input.sku == null ? undefined : { sku: String(input.sku) }
@@ -450,12 +457,13 @@ export async function searchInventory(config, { query = "", first = 25 } = {}) {
 
 export async function createProduct(config, input) {
   const data = await shopifyAdminGraphql(config, PRODUCT_CREATE_MUTATION, {
-    input: productInput(input)
+    product: productInput(input)
   });
   assertUserErrors(data.productCreate, "Shopify product create failed.");
 
   const product = data.productCreate.product;
   const variant = product?.variants?.nodes?.[0];
+  if (!variant?.id) throw new HttpError(502, "Shopify product create returned no default variant.");
   const update = variantInput(input, variant?.id);
   if (product?.id && update) {
     await updateProductVariant(config, product.id, update);
@@ -473,7 +481,7 @@ export async function createProduct(config, input) {
 
 export async function updateProduct(config, productId, input) {
   const data = await shopifyAdminGraphql(config, PRODUCT_UPDATE_MUTATION, {
-    input: productInput(input, productId)
+    product: productInput(input, productId)
   });
   assertUserErrors(data.productUpdate, "Shopify product update failed.");
 
@@ -522,6 +530,7 @@ export async function setInventoryOnHand(config, input) {
     input: {
       name: "on_hand",
       reason: "correction",
+      referenceDocumentUri: `staff-ims://inventory-set/${crypto.randomUUID()}`,
       ignoreCompareQuantity: true,
       quantities: [
         {
@@ -530,7 +539,8 @@ export async function setInventoryOnHand(config, input) {
           quantity
         }
       ]
-    }
+    },
+    idempotencyKey: crypto.randomUUID()
   });
   assertUserErrors(data.inventorySetQuantities, "Shopify inventory update failed.");
   return data.inventorySetQuantities.inventoryAdjustmentGroup;

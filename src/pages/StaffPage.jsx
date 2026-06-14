@@ -483,6 +483,7 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
   };
 
   const handleArchiveProduct = async (variant) => {
+    if (!window.confirm("Archive this product in the current catalog source?")) return;
     setStatus("saving");
     setError("");
     try {
@@ -530,13 +531,27 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
       </form>
       {canManage && (
         <form className="staff-product-form" onSubmit={handleCreateProduct}>
-          <input value={productForm.title} placeholder="Title" onChange={(event) => setProductValue("title", event.target.value)} required />
-          <input value={productForm.handle} placeholder="Handle" onChange={(event) => setProductValue("handle", event.target.value)} />
-          <input value={productForm.sku} placeholder="SKU" onChange={(event) => setProductValue("sku", event.target.value)} />
-          <input value={productForm.vendor} placeholder="Vendor" onChange={(event) => setProductValue("vendor", event.target.value)} />
-          <input value={productForm.productType} placeholder="Type" onChange={(event) => setProductValue("productType", event.target.value)} />
-          <input value={productForm.price} placeholder="Price" onChange={(event) => setProductValue("price", event.target.value)} />
-          <input type="number" min="0" value={productForm.onHand} placeholder="On hand" onChange={(event) => setProductValue("onHand", event.target.value)} />
+          <StaffField label="Title">
+            <input value={productForm.title} onChange={(event) => setProductValue("title", event.target.value)} required />
+          </StaffField>
+          <StaffField label="Handle">
+            <input value={productForm.handle} onChange={(event) => setProductValue("handle", event.target.value)} />
+          </StaffField>
+          <StaffField label="SKU">
+            <input value={productForm.sku} onChange={(event) => setProductValue("sku", event.target.value)} />
+          </StaffField>
+          <StaffField label="Vendor">
+            <input value={productForm.vendor} onChange={(event) => setProductValue("vendor", event.target.value)} />
+          </StaffField>
+          <StaffField label="Type">
+            <input value={productForm.productType} onChange={(event) => setProductValue("productType", event.target.value)} />
+          </StaffField>
+          <StaffField label="Price">
+            <input value={productForm.price} onChange={(event) => setProductValue("price", event.target.value)} />
+          </StaffField>
+          <StaffField label="On hand">
+            <input type="number" min="0" value={productForm.onHand} onChange={(event) => setProductValue("onHand", event.target.value)} />
+          </StaffField>
           <button className="button-secondary" type="submit" disabled={status === "saving"}>
             Create product
           </button>
@@ -547,13 +562,14 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
         {variants.map((variant) => {
           const draft = productDraftFromVariant(variant);
           const stockValue = stockDrafts[variant.id] ?? draft.onHand;
+          const source = variant.catalogProduct?.source || "shopify";
           return (
             <article className="staff-result" key={variant.id}>
               <div>
                 <strong>{variant.product?.title || "Product"}</strong>
                 <span>{variant.title === "Default Title" ? variant.sku || "Default" : variant.title}</span>
                 <small>
-                  {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
+                  {source} · {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
                 </small>
               </div>
               <div className="staff-result-actions">
@@ -591,13 +607,27 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
       </div>
       {editing && (
         <form className="staff-product-edit" onSubmit={handleSaveProduct}>
-          <input value={editing.title} placeholder="Title" onChange={(event) => setEditingValue("title", event.target.value)} required />
-          <input value={editing.handle} placeholder="Handle" onChange={(event) => setEditingValue("handle", event.target.value)} />
-          <input value={editing.sku} placeholder="SKU" onChange={(event) => setEditingValue("sku", event.target.value)} />
-          <input value={editing.vendor} placeholder="Vendor" onChange={(event) => setEditingValue("vendor", event.target.value)} />
-          <input value={editing.productType} placeholder="Type" onChange={(event) => setEditingValue("productType", event.target.value)} />
-          <input value={editing.price} placeholder="Price" onChange={(event) => setEditingValue("price", event.target.value)} />
-          <input type="number" min="0" value={editing.onHand} placeholder="On hand" onChange={(event) => setEditingValue("onHand", event.target.value)} />
+          <StaffField label="Title">
+            <input value={editing.title} onChange={(event) => setEditingValue("title", event.target.value)} required />
+          </StaffField>
+          <StaffField label="Handle">
+            <input value={editing.handle} onChange={(event) => setEditingValue("handle", event.target.value)} />
+          </StaffField>
+          <StaffField label="SKU">
+            <input value={editing.sku} onChange={(event) => setEditingValue("sku", event.target.value)} />
+          </StaffField>
+          <StaffField label="Vendor">
+            <input value={editing.vendor} onChange={(event) => setEditingValue("vendor", event.target.value)} />
+          </StaffField>
+          <StaffField label="Type">
+            <input value={editing.productType} onChange={(event) => setEditingValue("productType", event.target.value)} />
+          </StaffField>
+          <StaffField label="Price">
+            <input value={editing.price} onChange={(event) => setEditingValue("price", event.target.value)} />
+          </StaffField>
+          <StaffField label="On hand">
+            <input type="number" min="0" value={editing.onHand} onChange={(event) => setEditingValue("onHand", event.target.value)} />
+          </StaffField>
           <button className="button-secondary" type="submit" disabled={status === "saving"}>
             Save product
           </button>

@@ -1043,7 +1043,9 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 }
 
 .staff-login label,
-.staff-cart-form label {
+.staff-cart-form label,
+.staff-product-form label,
+.staff-product-edit label {
   display: grid;
   gap: 7px;
   color: var(--text-soft);
@@ -1270,6 +1272,8 @@ html[data-theme="warm"] .staff-user-controls select {
 .staff-result-actions {
   display: flex !important;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

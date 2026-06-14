@@ -15,6 +15,7 @@ Copy `.env.example` to `.env.local` and set the `VITE_SHOPIFY_*` values to load 
 
 Backend config lives in `backend/.env.local`; copy `backend/.env.example` if needed.
 Set backend `STAFF_CATALOG_SOURCE=csv` for local MVP CRUD against working CSV copies, or `STAFF_CATALOG_SOURCE=shopify` for live Shopify Admin CRUD.
+Run `npm run shopify:preflight` before live mode; it is read-only.
 
 ## Staff IMS
 

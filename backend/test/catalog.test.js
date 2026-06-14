@@ -92,3 +92,16 @@ test("CSV provider set-on-hand and local draft order stay local", async () => {
   const completed = await provider.completeDraftOrder(draft.id);
   assert.match(completed.order_id, /^csv-order:/);
 });
+
+test("CSV provider serializes concurrent product writes", async () => {
+  const setup = await csvConfig();
+  const provider = new CsvCatalogProvider(setup.config);
+
+  await Promise.all([
+    provider.createProduct({ title: "Concurrent A", handle: "concurrent-a", sku: "SKU-A", price: "10", onHand: "1" }),
+    provider.createProduct({ title: "Concurrent B", handle: "concurrent-b", sku: "SKU-B", price: "20", onHand: "2" })
+  ]);
+
+  const results = await provider.searchProducts({ query: "concurrent", first: 10 });
+  assert.deepEqual(results.map((product) => product.handle).sort(), ["concurrent-a", "concurrent-b"]);
+});

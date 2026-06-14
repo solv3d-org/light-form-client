@@ -99,8 +99,8 @@ test("Shopify product create sends product, variant, and inventory mutations", a
     operations.push(body);
 
     if (body.query.includes("ProductCreate")) {
-      assert.equal(body.variables.input.title, "Lamp");
-      assert.equal(body.variables.input.handle, "lamp");
+      assert.equal(body.variables.product.title, "Lamp");
+      assert.equal(body.variables.product.handle, "lamp");
       return new Response(
         JSON.stringify({
           data: {
@@ -130,6 +130,9 @@ test("Shopify product create sends product, variant, and inventory mutations", a
 
     assert.equal(body.variables.input.quantities[0].quantity, 7);
     assert.equal(body.variables.input.quantities[0].locationId, "gid://shopify/Location/9");
+    assert.match(body.variables.idempotencyKey, /^[0-9a-f-]{36}$/);
+    assert.match(body.variables.input.referenceDocumentUri, /^staff-ims:\/\/inventory-set\//);
+    assert.match(body.query, /@idempotent/);
     return new Response(
       JSON.stringify({ data: { inventorySetQuantities: { inventoryAdjustmentGroup: { createdAt: "now", reason: "correction" }, userErrors: [] } } }),
       { status: 200 }
@@ -152,8 +155,8 @@ test("Shopify archive product sets status archived", async () => {
 
   globalThis.fetch = async (url, options = {}) => {
     const body = JSON.parse(options.body);
-    assert.equal(body.variables.input.id, "gid://shopify/Product/1");
-    assert.equal(body.variables.input.status, "ARCHIVED");
+    assert.equal(body.variables.product.id, "gid://shopify/Product/1");
+    assert.equal(body.variables.product.status, "ARCHIVED");
     return new Response(
       JSON.stringify({
         data: {
@@ -169,6 +172,34 @@ test("Shopify archive product sets status archived", async () => {
 
   try {
     await archiveProduct(config, "gid://shopify/Product/1");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Shopify product create fails clearly without a default variant", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({
+        data: {
+          productCreate: {
+            product: {
+              id: "gid://shopify/Product/1",
+              title: "Lamp",
+              handle: "lamp",
+              variants: { nodes: [] }
+            },
+            userErrors: []
+          }
+        }
+      }),
+      { status: 200 }
+    );
+
+  try {
+    await assert.rejects(() => createProduct(config, { title: "Lamp", handle: "lamp", sku: "SKU-1" }), /no default variant/);
   } finally {
     globalThis.fetch = originalFetch;
   }

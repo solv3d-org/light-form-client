@@ -13,6 +13,8 @@ The first start bootstraps one admin if `data/staff-users.json` is empty and `BO
 
 Set `STAFF_CATALOG_SOURCE=csv` for MVP/local testing or `STAFF_CATALOG_SOURCE=shopify` for live Admin API mode. CSV mode copies the dated preserved snapshots into `data/local-shopify-products.csv` and `data/local-shopify-inventory.csv` if those working files are missing, then mutates only the working copies.
 
+Before switching to `STAFF_CATALOG_SOURCE=shopify`, set `SHOPIFY_LOCATION_ID=gid://shopify/Location/...` and run `npm run shopify:preflight` from the repo root. The preflight performs read-only schema/location checks and does not create or update Shopify products.
+
 ## Roles
 
 | Role | Access |

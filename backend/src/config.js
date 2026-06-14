@@ -112,6 +112,9 @@ export function assertRuntimeConfig(config) {
   if (config.catalog?.source === "shopify" && !isShopifyAdminConfigured(config)) {
     missing.push("SHOPIFY_STORE_DOMAIN/SHOPIFY_ADMIN_ACCESS_TOKEN or SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET/SHOPIFY_API_VERSION");
   }
+  if (config.catalog?.source === "shopify" && !config.catalog?.shopifyLocationId) {
+    missing.push("SHOPIFY_LOCATION_ID");
+  }
 
   if (missing.length) {
     throw new Error(`Missing backend config: ${missing.join(", ")}`);

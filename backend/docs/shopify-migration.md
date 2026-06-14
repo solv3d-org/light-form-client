@@ -22,6 +22,7 @@ SHOPIFY_STORE_DOMAIN=26gcsf-0y.myshopify.com
 SHOPIFY_CLIENT_ID=...
 SHOPIFY_CLIENT_SECRET=...
 SHOPIFY_API_VERSION=2026-04
+SHOPIFY_LOCATION_ID=gid://shopify/Location/...
 ```
 
 Legacy/admin-created custom apps can use this instead:
@@ -56,6 +57,8 @@ For Dev Dashboard apps:
 7. Leave `SHOPIFY_ADMIN_ACCESS_TOKEN` blank unless using an older admin-created custom app.
 
 The audit script exchanges Client ID/Secret for a short-lived access token with Shopify's client credentials grant.
+
+Run `npm run shopify:preflight` before enabling `STAFF_CATALOG_SOURCE=shopify`. It validates Admin GraphQL product/inventory mutation schema and the configured `SHOPIFY_LOCATION_ID` without mutating Shopify data.
 
 ## Data Layout
 

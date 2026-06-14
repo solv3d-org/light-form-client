@@ -1,7 +1,8 @@
-import { copyFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { HttpError } from "./http.js";
 import {
   archiveProduct,
@@ -18,6 +19,8 @@ import {
 
 const MAX_SEARCH_FIRST = 100;
 const PRODUCT_ID_PREFIX = "csv:";
+const CSV_LOCK_TIMEOUT_MS = 5000;
+const CSV_LOCK_RETRY_MS = 25;
 
 export function parseCsv(text) {
   const rows = [];
@@ -140,6 +143,31 @@ async function writeCsvFile(filePath, headers, rows) {
   const tempPath = `${filePath}.${process.pid}.tmp`;
   await writeFile(tempPath, stringifyCsv([headers, ...rows]), "utf8");
   await rename(tempPath, filePath);
+}
+
+async function withFileLock(lockPath, callback) {
+  await mkdir(path.dirname(lockPath), { recursive: true });
+  const deadline = Date.now() + CSV_LOCK_TIMEOUT_MS;
+  let handle = null;
+
+  while (!handle) {
+    try {
+      handle = await open(lockPath, "wx");
+      await handle.writeFile(`${process.pid}\n`, "utf8");
+    } catch (error) {
+      if (error.code !== "EEXIST" || Date.now() >= deadline) {
+        throw new HttpError(423, "CSV catalog is locked by another write.");
+      }
+      await delay(CSV_LOCK_RETRY_MS);
+    }
+  }
+
+  try {
+    return await callback();
+  } finally {
+    await handle.close().catch(() => {});
+    await unlink(lockPath).catch(() => {});
+  }
 }
 
 function productRecord(productRow, productHeaders, inventoryRow, inventoryHeaders) {
@@ -306,93 +334,104 @@ export class CsvCatalogProvider {
     await writeCsvFile(this.config.catalog.inventoryCsvWorking, tables.inventoryHeaders, tables.inventoryRows);
   }
 
+  async mutateTables(mutator) {
+    await this.ensureWorkingCopies();
+    const lockPath = path.join(path.dirname(this.config.catalog.productsCsvWorking), "local-shopify-catalog.lock");
+    return withFileLock(lockPath, async () => {
+      const tables = await this.loadTables();
+      const result = await mutator(tables);
+      await this.writeTables(tables);
+      return result;
+    });
+  }
+
   async createProduct(input) {
-    const tables = await this.loadTables();
-    const handle = input.handle ? slugify(input.handle) : slugify(input.title);
-    if (!handle) throw new HttpError(400, "Product handle required.");
-    if (!input.title) throw new HttpError(400, "Product title required.");
-    if (tables.productRows.some((row) => getCell(row, tables.productMap, "Handle") === handle)) {
-      throw new HttpError(409, "Product handle already exists.");
-    }
+    return this.mutateTables(async (tables) => {
+      const handle = input.handle ? slugify(input.handle) : slugify(input.title);
+      if (!handle) throw new HttpError(400, "Product handle required.");
+      if (!input.title) throw new HttpError(400, "Product title required.");
+      if (tables.productRows.some((row) => getCell(row, tables.productMap, "Handle") === handle)) {
+        throw new HttpError(409, "Product handle already exists.");
+      }
 
-    const sku = String(input.sku || handle).trim();
-    const productRow = Array(tables.productHeaders.length).fill("");
-    setCell(productRow, tables.productMap, "Handle", handle);
-    setCell(productRow, tables.productMap, "Title", input.title);
-    setCell(productRow, tables.productMap, "Body (HTML)", input.bodyHtml || `<p>${input.title}</p>`);
-    setCell(productRow, tables.productMap, "Vendor", input.vendor || "");
-    setCell(productRow, tables.productMap, "Type", input.productType || "");
-    setCell(productRow, tables.productMap, "Tags", input.tags || "staff-local");
-    setCell(productRow, tables.productMap, "Published", publishedFromStatus(input.status));
-    setCell(productRow, tables.productMap, "Option1 Name", "Title");
-    setCell(productRow, tables.productMap, "Option1 Value", "Default Title");
-    setCell(productRow, tables.productMap, "Variant SKU", sku);
-    setCell(productRow, tables.productMap, "Variant Inventory Tracker", "shopify");
-    setCell(productRow, tables.productMap, "Variant Inventory Qty", input.onHand ?? 0);
-    setCell(productRow, tables.productMap, "Variant Inventory Policy", "deny");
-    setCell(productRow, tables.productMap, "Variant Fulfillment Service", "manual");
-    setCell(productRow, tables.productMap, "Variant Price", input.price ?? 0);
-    setCell(productRow, tables.productMap, "Variant Compare-at Price", input.compareAtPrice || "");
-    setCell(productRow, tables.productMap, "Variant Requires Shipping", "true");
-    setCell(productRow, tables.productMap, "Variant Taxable", "true");
-    setCell(productRow, tables.productMap, "Variant Barcode", input.barcode || "");
-    setCell(productRow, tables.productMap, "Image Src", input.imageUrl || "");
-    setCell(productRow, tables.productMap, "Image Alt Text", input.imageAlt || input.title);
-    tables.productRows.push(productRow);
+      const sku = String(input.sku || handle).trim();
+      const productRow = Array(tables.productHeaders.length).fill("");
+      setCell(productRow, tables.productMap, "Handle", handle);
+      setCell(productRow, tables.productMap, "Title", input.title);
+      setCell(productRow, tables.productMap, "Body (HTML)", input.bodyHtml || `<p>${input.title}</p>`);
+      setCell(productRow, tables.productMap, "Vendor", input.vendor || "");
+      setCell(productRow, tables.productMap, "Type", input.productType || "");
+      setCell(productRow, tables.productMap, "Tags", input.tags || "staff-local");
+      setCell(productRow, tables.productMap, "Published", publishedFromStatus(input.status));
+      setCell(productRow, tables.productMap, "Option1 Name", "Title");
+      setCell(productRow, tables.productMap, "Option1 Value", "Default Title");
+      setCell(productRow, tables.productMap, "Variant SKU", sku);
+      setCell(productRow, tables.productMap, "Variant Inventory Tracker", "shopify");
+      setCell(productRow, tables.productMap, "Variant Inventory Qty", input.onHand ?? 0);
+      setCell(productRow, tables.productMap, "Variant Inventory Policy", "deny");
+      setCell(productRow, tables.productMap, "Variant Fulfillment Service", "manual");
+      setCell(productRow, tables.productMap, "Variant Price", input.price ?? 0);
+      setCell(productRow, tables.productMap, "Variant Compare-at Price", input.compareAtPrice || "");
+      setCell(productRow, tables.productMap, "Variant Requires Shipping", "true");
+      setCell(productRow, tables.productMap, "Variant Taxable", "true");
+      setCell(productRow, tables.productMap, "Variant Barcode", input.barcode || "");
+      setCell(productRow, tables.productMap, "Image Src", input.imageUrl || "");
+      setCell(productRow, tables.productMap, "Image Alt Text", input.imageAlt || input.title);
+      tables.productRows.push(productRow);
 
-    const inventoryRow = Array(tables.inventoryHeaders.length).fill("");
-    setCell(inventoryRow, tables.inventoryMap, "Handle", handle);
-    setCell(inventoryRow, tables.inventoryMap, "Title", input.title);
-    setCell(inventoryRow, tables.inventoryMap, "Option1 Name", "Title");
-    setCell(inventoryRow, tables.inventoryMap, "Option1 Value", "Default Title");
-    setCell(inventoryRow, tables.inventoryMap, "SKU", sku);
-    setCell(inventoryRow, tables.inventoryMap, "On hand (new)", input.onHand ?? 0);
-    tables.inventoryRows.push(inventoryRow);
+      const inventoryRow = Array(tables.inventoryHeaders.length).fill("");
+      setCell(inventoryRow, tables.inventoryMap, "Handle", handle);
+      setCell(inventoryRow, tables.inventoryMap, "Title", input.title);
+      setCell(inventoryRow, tables.inventoryMap, "Option1 Name", "Title");
+      setCell(inventoryRow, tables.inventoryMap, "Option1 Value", "Default Title");
+      setCell(inventoryRow, tables.inventoryMap, "SKU", sku);
+      setCell(inventoryRow, tables.inventoryMap, "On hand (new)", input.onHand ?? 0);
+      tables.inventoryRows.push(inventoryRow);
 
-    await this.writeTables(tables);
-    return productRecord(productRow, tables.productMap, inventoryRow, tables.inventoryMap);
+      return productRecord(productRow, tables.productMap, inventoryRow, tables.inventoryMap);
+    });
   }
 
   async updateProduct(id, input) {
-    const tables = await this.loadTables();
-    const index = this.findProductIndex(tables, id);
-    if (index === -1) throw new HttpError(404, "Product not found.");
+    return this.mutateTables(async (tables) => {
+      const index = this.findProductIndex(tables, id);
+      if (index === -1) throw new HttpError(404, "Product not found.");
 
-    const productRow = tables.productRows[index];
-    const before = productRecord(productRow, tables.productMap, null, tables.inventoryMap);
-    const inventoryIndex = this.findInventoryIndex(tables, before);
-    const inventoryRow = inventoryIndex === -1 ? null : tables.inventoryRows[inventoryIndex];
-    const nextHandle = input.handle ? slugify(input.handle) : before.handle;
-    const nextSku = input.sku == null ? before.sku : String(input.sku).trim();
+      const productRow = tables.productRows[index];
+      const before = productRecord(productRow, tables.productMap, null, tables.inventoryMap);
+      const inventoryIndex = this.findInventoryIndex(tables, before);
+      const inventoryRow = inventoryIndex === -1 ? null : tables.inventoryRows[inventoryIndex];
+      const nextHandle = input.handle ? slugify(input.handle) : before.handle;
+      const nextSku = input.sku == null ? before.sku : String(input.sku).trim();
 
-    if (nextHandle !== before.handle && tables.productRows.some((row, rowIndex) => rowIndex !== index && getCell(row, tables.productMap, "Handle") === nextHandle)) {
-      throw new HttpError(409, "Product handle already exists.");
-    }
+      if (nextHandle !== before.handle && tables.productRows.some((row, rowIndex) => rowIndex !== index && getCell(row, tables.productMap, "Handle") === nextHandle)) {
+        throw new HttpError(409, "Product handle already exists.");
+      }
 
-    if (input.title != null) setCell(productRow, tables.productMap, "Title", input.title);
-    if (input.handle != null) setCell(productRow, tables.productMap, "Handle", nextHandle);
-    if (input.bodyHtml != null) setCell(productRow, tables.productMap, "Body (HTML)", input.bodyHtml);
-    if (input.vendor != null) setCell(productRow, tables.productMap, "Vendor", input.vendor);
-    if (input.productType != null) setCell(productRow, tables.productMap, "Type", input.productType);
-    if (input.tags != null) setCell(productRow, tables.productMap, "Tags", input.tags);
-    if (input.status != null) setCell(productRow, tables.productMap, "Published", publishedFromStatus(input.status));
-    if (input.sku != null) setCell(productRow, tables.productMap, "Variant SKU", nextSku);
-    if (input.price != null) setCell(productRow, tables.productMap, "Variant Price", input.price);
-    if (input.compareAtPrice != null) setCell(productRow, tables.productMap, "Variant Compare-at Price", input.compareAtPrice);
-    if (input.barcode != null) setCell(productRow, tables.productMap, "Variant Barcode", input.barcode);
-    if (input.imageUrl != null) setCell(productRow, tables.productMap, "Image Src", input.imageUrl);
-    if (input.imageAlt != null) setCell(productRow, tables.productMap, "Image Alt Text", input.imageAlt);
-    if (input.onHand != null) setCell(productRow, tables.productMap, "Variant Inventory Qty", input.onHand);
+      if (input.title != null) setCell(productRow, tables.productMap, "Title", input.title);
+      if (input.handle != null) setCell(productRow, tables.productMap, "Handle", nextHandle);
+      if (input.bodyHtml != null) setCell(productRow, tables.productMap, "Body (HTML)", input.bodyHtml);
+      if (input.vendor != null) setCell(productRow, tables.productMap, "Vendor", input.vendor);
+      if (input.productType != null) setCell(productRow, tables.productMap, "Type", input.productType);
+      if (input.tags != null) setCell(productRow, tables.productMap, "Tags", input.tags);
+      if (input.status != null) setCell(productRow, tables.productMap, "Published", publishedFromStatus(input.status));
+      if (input.sku != null) setCell(productRow, tables.productMap, "Variant SKU", nextSku);
+      if (input.price != null) setCell(productRow, tables.productMap, "Variant Price", input.price);
+      if (input.compareAtPrice != null) setCell(productRow, tables.productMap, "Variant Compare-at Price", input.compareAtPrice);
+      if (input.barcode != null) setCell(productRow, tables.productMap, "Variant Barcode", input.barcode);
+      if (input.imageUrl != null) setCell(productRow, tables.productMap, "Image Src", input.imageUrl);
+      if (input.imageAlt != null) setCell(productRow, tables.productMap, "Image Alt Text", input.imageAlt);
+      if (input.onHand != null) setCell(productRow, tables.productMap, "Variant Inventory Qty", input.onHand);
 
-    if (inventoryRow) {
-      if (input.handle != null) setCell(inventoryRow, tables.inventoryMap, "Handle", nextHandle);
-      if (input.title != null) setCell(inventoryRow, tables.inventoryMap, "Title", input.title);
-      if (input.sku != null) setCell(inventoryRow, tables.inventoryMap, "SKU", nextSku);
-      if (input.onHand != null) setCell(inventoryRow, tables.inventoryMap, "On hand (new)", input.onHand);
-    }
+      if (inventoryRow) {
+        if (input.handle != null) setCell(inventoryRow, tables.inventoryMap, "Handle", nextHandle);
+        if (input.title != null) setCell(inventoryRow, tables.inventoryMap, "Title", input.title);
+        if (input.sku != null) setCell(inventoryRow, tables.inventoryMap, "SKU", nextSku);
+        if (input.onHand != null) setCell(inventoryRow, tables.inventoryMap, "On hand (new)", input.onHand);
+      }
 
-    await this.writeTables(tables);
-    return productRecord(productRow, tables.productMap, inventoryRow, tables.inventoryMap);
+      return productRecord(productRow, tables.productMap, inventoryRow, tables.inventoryMap);
+    });
   }
 
   async archiveProduct(id) {
