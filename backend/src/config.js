@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export const DEFAULT_SHOPIFY_API_VERSION = "2026-04";
+export const DEFAULT_STAFF_CATALOG_SOURCE = "csv";
+export const STAFF_CATALOG_SOURCES = new Set(["csv", "shopify"]);
 
 const PLACEHOLDER_VALUES = new Set([
   "your-store.myshopify.com",
@@ -45,11 +47,25 @@ export function normalizeStoreDomain(domain) {
 export function getConfig(cwd = process.cwd()) {
   loadEnv(cwd);
 
+  const staffCatalogSource = process.env.STAFF_CATALOG_SOURCE || DEFAULT_STAFF_CATALOG_SOURCE;
+
   return {
     cwd,
     port: Number(process.env.PORT || 8787),
     corsOrigin: process.env.CORS_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173",
     dataDir: process.env.DATA_DIR || path.join(cwd, "data"),
+    catalog: {
+      source: staffCatalogSource,
+      productsCsvBaseline:
+        process.env.STAFF_PRODUCTS_CSV_BASELINE ||
+        path.join(cwd, "shopify-data", "file_items_shopify_product_preserved_13_june_2026.csv"),
+      inventoryCsvBaseline:
+        process.env.STAFF_INVENTORY_CSV_BASELINE ||
+        path.join(cwd, "shopify-data", "file_items_shopify_inventory_preserved_13_june_2026.csv"),
+      productsCsvWorking: process.env.STAFF_PRODUCTS_CSV_WORKING || path.join(cwd, "data", "local-shopify-products.csv"),
+      inventoryCsvWorking: process.env.STAFF_INVENTORY_CSV_WORKING || path.join(cwd, "data", "local-shopify-inventory.csv"),
+      shopifyLocationId: process.env.SHOPIFY_LOCATION_ID || ""
+    },
     shopify: {
       storeDomain: normalizeStoreDomain(process.env.SHOPIFY_STORE_DOMAIN || ""),
       adminAccessToken: process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || "",
@@ -89,10 +105,11 @@ export function assertRuntimeConfig(config) {
   const missing = [];
 
   if (!Number.isFinite(config.port) || config.port <= 0) missing.push("PORT");
+  if (!STAFF_CATALOG_SOURCES.has(config.catalog?.source)) missing.push("STAFF_CATALOG_SOURCE");
   if (!config.auth.jwtSecret || config.auth.jwtSecret.length < 32 || PLACEHOLDER_VALUES.has(config.auth.jwtSecret)) {
     missing.push("STAFF_JWT_SECRET");
   }
-  if (!isShopifyAdminConfigured(config)) {
+  if (config.catalog?.source === "shopify" && !isShopifyAdminConfigured(config)) {
     missing.push("SHOPIFY_STORE_DOMAIN/SHOPIFY_ADMIN_ACCESS_TOKEN or SHOPIFY_CLIENT_ID/SHOPIFY_CLIENT_SECRET/SHOPIFY_API_VERSION");
   }
 

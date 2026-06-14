@@ -46,6 +46,104 @@ const PRODUCT_VARIANTS_QUERY = `
   }
 `;
 
+const PRODUCT_CREATE_MUTATION = `
+  mutation ProductCreate($input: ProductInput!) {
+    productCreate(input: $input) {
+      product {
+        id
+        title
+        handle
+        vendor
+        productType
+        status
+        variants(first: 1) {
+          nodes {
+            id
+            title
+            sku
+            price
+            inventoryItem {
+              id
+            }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const PRODUCT_UPDATE_MUTATION = `
+  mutation ProductUpdate($input: ProductInput!) {
+    productUpdate(input: $input) {
+      product {
+        id
+        title
+        handle
+        vendor
+        productType
+        status
+        variants(first: 1) {
+          nodes {
+            id
+            title
+            sku
+            price
+            inventoryItem {
+              id
+            }
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const PRODUCT_VARIANTS_BULK_UPDATE_MUTATION = `
+  mutation ProductVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+    productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+      product {
+        id
+      }
+      productVariants {
+        id
+        title
+        sku
+        price
+        inventoryItem {
+          id
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const INVENTORY_SET_QUANTITIES_MUTATION = `
+  mutation InventorySetQuantities($input: InventorySetQuantitiesInput!) {
+    inventorySetQuantities(input: $input) {
+      inventoryAdjustmentGroup {
+        createdAt
+        reason
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 function assertShopifyConfig(config) {
   if (!isShopifyAdminConfigured(config)) throw new HttpError(500, "Shopify Admin API is not configured.");
 }
@@ -93,6 +191,14 @@ export async function getShopifyAccessToken(config) {
 
 function cleanObject(input) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined && value !== ""));
+}
+
+function cleanStringList(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function numericShopifyId(id, label) {
@@ -146,6 +252,40 @@ function normalizeFulfillment(input) {
     deliveryDate: fulfillment.deliveryDate || "",
     dateTba: Boolean(fulfillment.dateTba)
   };
+}
+
+function assertUserErrors(container, label) {
+  const userErrors = container?.userErrors || [];
+  if (userErrors.length) throw new HttpError(400, label, userErrors);
+}
+
+function normalizeProductStatus(status) {
+  const normalized = String(status || "ACTIVE").toUpperCase();
+  return ["ACTIVE", "ARCHIVED", "DRAFT"].includes(normalized) ? normalized : "ACTIVE";
+}
+
+function productInput(input, id = undefined) {
+  if (!id && !input.title) throw new HttpError(400, "Product title required.");
+  return cleanObject({
+    id,
+    title: input.title,
+    handle: input.handle,
+    descriptionHtml: input.bodyHtml,
+    vendor: input.vendor,
+    productType: input.productType,
+    tags: input.tags == null ? undefined : cleanStringList(input.tags),
+    status: normalizeProductStatus(input.status)
+  });
+}
+
+function variantInput(input, variantId) {
+  const next = cleanObject({
+    id: variantId,
+    price: input.price == null || input.price === "" ? undefined : String(input.price),
+    compareAtPrice: input.compareAtPrice == null || input.compareAtPrice === "" ? undefined : String(input.compareAtPrice),
+    inventoryItem: input.sku == null ? undefined : { sku: String(input.sku) }
+  });
+  return Object.keys(next).length > 1 ? next : null;
 }
 
 function normalizeLineItems(input) {
@@ -305,6 +445,94 @@ export async function searchInventory(config, { query = "", first = 25 } = {}) {
       }
     };
   });
+}
+
+export async function createProduct(config, input) {
+  const data = await shopifyAdminGraphql(config, PRODUCT_CREATE_MUTATION, {
+    input: productInput(input)
+  });
+  assertUserErrors(data.productCreate, "Shopify product create failed.");
+
+  const product = data.productCreate.product;
+  const variant = product?.variants?.nodes?.[0];
+  const update = variantInput(input, variant?.id);
+  if (product?.id && update) {
+    await updateProductVariant(config, product.id, update);
+  }
+  if (input.onHand != null && variant?.inventoryItem?.id) {
+    await setInventoryOnHand(config, {
+      inventoryItemId: variant.inventoryItem.id,
+      locationId: input.locationId || config.catalog?.shopifyLocationId,
+      onHand: input.onHand
+    });
+  }
+
+  return product;
+}
+
+export async function updateProduct(config, productId, input) {
+  const data = await shopifyAdminGraphql(config, PRODUCT_UPDATE_MUTATION, {
+    input: productInput(input, productId)
+  });
+  assertUserErrors(data.productUpdate, "Shopify product update failed.");
+
+  const product = data.productUpdate.product;
+  const variantId = input.variantId || input.shopifyVariantId || product?.variants?.nodes?.[0]?.id;
+  const update = variantInput(input, variantId);
+  if (product?.id && update) {
+    await updateProductVariant(config, product.id, update);
+  }
+  if (input.onHand != null) {
+    const inventoryItemId = input.inventoryItemId || product?.variants?.nodes?.[0]?.inventoryItem?.id;
+    await setInventoryOnHand(config, {
+      inventoryItemId,
+      locationId: input.locationId || config.catalog?.shopifyLocationId,
+      onHand: input.onHand
+    });
+  }
+
+  return product;
+}
+
+export async function archiveProduct(config, productId) {
+  return updateProduct(config, productId, { status: "ARCHIVED" });
+}
+
+export async function updateProductVariant(config, productId, input) {
+  if (!productId) throw new HttpError(400, "productId required.");
+  if (!input?.id) throw new HttpError(400, "variant id required.");
+
+  const data = await shopifyAdminGraphql(config, PRODUCT_VARIANTS_BULK_UPDATE_MUTATION, {
+    productId,
+    variants: [input]
+  });
+  assertUserErrors(data.productVariantsBulkUpdate, "Shopify variant update failed.");
+  return data.productVariantsBulkUpdate.productVariants?.[0] || null;
+}
+
+export async function setInventoryOnHand(config, input) {
+  const locationId = input.locationId || config.catalog?.shopifyLocationId;
+  const quantity = Number(input.onHand);
+  if (!input.inventoryItemId) throw new HttpError(400, "inventoryItemId required.");
+  if (!locationId) throw new HttpError(500, "SHOPIFY_LOCATION_ID required for inventory writes.");
+  if (!Number.isInteger(quantity) || quantity < 0) throw new HttpError(400, "onHand must be a non-negative integer.");
+
+  const data = await shopifyAdminGraphql(config, INVENTORY_SET_QUANTITIES_MUTATION, {
+    input: {
+      name: "on_hand",
+      reason: "correction",
+      ignoreCompareQuantity: true,
+      quantities: [
+        {
+          inventoryItemId: input.inventoryItemId,
+          locationId,
+          quantity
+        }
+      ]
+    }
+  });
+  assertUserErrors(data.inventorySetQuantities, "Shopify inventory update failed.");
+  return data.inventorySetQuantities.inventoryAdjustmentGroup;
 }
 
 export async function createDraftOrder(config, input) {
