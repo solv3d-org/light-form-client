@@ -1,5 +1,4 @@
 import { getSelectedProductOptions } from "@shopify/hydrogen";
-import { catalogMetadata as fallbackMetadata, products as fallbackProducts } from "../data/products";
 import { getShopifyProductUrl } from "./shopifyConfig";
 
 const PRODUCT_PAGE_SIZE = 100;
@@ -286,39 +285,7 @@ export function normalizeShopifyProduct(product, index = 0, config, variantOverr
   };
 }
 
-function getFallbackHandle(product) {
-  if (product.handle) return product.handle;
-
-  try {
-    const pathname = new URL(product.sourceUrl).pathname;
-    const parts = pathname.split("/").filter(Boolean);
-    return parts[parts.length - 1] || product.id;
-  } catch {
-    return product.id;
-  }
-}
-
-export function getFallbackCatalog() {
-  return {
-    products: fallbackProducts.map((product) => ({
-      ...product,
-      handle: getFallbackHandle(product),
-      availableForSale: false,
-      checkoutEnabled: false,
-      dataSource: "fallback"
-    })),
-    catalogMetadata: {
-      ...fallbackMetadata,
-      sourceLabel: "Preview catalog",
-      mode: "fallback"
-    },
-    catalogStatus: "fallback"
-  };
-}
-
 export async function loadCatalog(context) {
-  if (!context.shopifyConfigured) return getFallbackCatalog();
-
   const products = [];
   let after = null;
   let hasNextPage = true;
@@ -359,19 +326,6 @@ export async function loadCatalog(context) {
 }
 
 export async function loadProduct(context, handle, request) {
-  if (!context.shopifyConfigured) {
-    const catalog = getFallbackCatalog();
-    const product = catalog.products.find((item) => item.handle === handle || item.id === handle);
-    if (!product) throw new Response(null, { status: 404 });
-    return {
-      title: product.title,
-      product,
-      shopifyProduct: null,
-      storeDomain: "",
-      shopifyConfigured: false
-    };
-  }
-
   const data = await context.storefront.query(PRODUCT_QUERY, {
     cache: context.storefront.CacheShort(),
     variables: {

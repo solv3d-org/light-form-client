@@ -1,13 +1,11 @@
 export const DEFAULT_SHOPIFY_API_VERSION = "2026-04";
 
-const PLACEHOLDER_STORE_DOMAIN = "placeholder.myshopify.com";
-const PLACEHOLDER_STOREFRONT_TOKEN = "placeholder";
 const SHOPIFY_PLACEHOLDER_VALUES = new Set([
   "",
   "your-store.myshopify.com",
   "your_storefront_public_token",
-  PLACEHOLDER_STORE_DOMAIN,
-  PLACEHOLDER_STOREFRONT_TOKEN
+  "placeholder.myshopify.com",
+  "placeholder"
 ]);
 
 export function normalizeStoreDomain(domain = "") {
@@ -60,8 +58,8 @@ export function getHydrogenRuntime(env = {}) {
   const shopifyConfigured = isShopifyConfigured(shopifyConfig);
   const isProduction = process.env.NODE_ENV === "production";
 
-  if (isProduction && !shopifyConfigured) {
-    throw new Error("PUBLIC_STORE_DOMAIN and PUBLIC_STOREFRONT_API_TOKEN are required in production.");
+  if (!shopifyConfigured) {
+    throw new Error("PUBLIC_STORE_DOMAIN and PUBLIC_STOREFRONT_API_TOKEN are required for the Hydrogen storefront.");
   }
 
   if (isProduction && !source.SESSION_SECRET) {
@@ -72,12 +70,10 @@ export function getHydrogenRuntime(env = {}) {
     env: {
       ...source,
       SESSION_SECRET: source.SESSION_SECRET || "dev-session-secret",
-      PUBLIC_STORE_DOMAIN: shopifyConfigured ? shopifyConfig.storeDomain : PLACEHOLDER_STORE_DOMAIN,
-      PUBLIC_STOREFRONT_API_TOKEN: shopifyConfigured
-        ? shopifyConfig.storefrontAccessToken
-        : PLACEHOLDER_STOREFRONT_TOKEN,
+      PUBLIC_STORE_DOMAIN: shopifyConfig.storeDomain,
+      PUBLIC_STOREFRONT_API_TOKEN: shopifyConfig.storefrontAccessToken,
       PUBLIC_STOREFRONT_ID: source.PUBLIC_STOREFRONT_ID || "",
-      PUBLIC_CHECKOUT_DOMAIN: shopifyConfigured ? shopifyConfig.checkoutDomain || shopifyConfig.storeDomain : PLACEHOLDER_STORE_DOMAIN
+      PUBLIC_CHECKOUT_DOMAIN: shopifyConfig.checkoutDomain || shopifyConfig.storeDomain
     },
     shopifyConfig,
     shopifyConfigured,

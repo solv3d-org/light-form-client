@@ -11,7 +11,7 @@ npm run dev
 
 Root `npm run dev` starts the Hydrogen storefront and `backend/src/server.js`. `make dev`, `make dev-web`, and `make dev-backend` wrap the same commands.
 
-Copy `.env.example` to `.env.local` and set `PUBLIC_STORE_DOMAIN`, `PUBLIC_STOREFRONT_API_TOKEN`, and `SESSION_SECRET` to load Shopify products and cart checkout. Without Shopify values in dev, the app uses the bundled preview catalog and disables checkout. Production fails fast if Shopify Storefront env is missing.
+Copy `.env.example` to `.env.local` and set `PUBLIC_STORE_DOMAIN`, `PUBLIC_STOREFRONT_API_TOKEN`, and `SESSION_SECRET` to load Shopify products and cart checkout. The Hydrogen storefront fails fast if Storefront env is missing in dev or production.
 
 Backend config lives in `backend/.env.local`; copy `backend/.env.example` if needed.
 Set backend `STAFF_CATALOG_SOURCE=csv` for local MVP CRUD against working CSV copies, or `STAFF_CATALOG_SOURCE=shopify` for live Shopify Admin CRUD.

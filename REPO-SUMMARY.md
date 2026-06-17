@@ -14,9 +14,9 @@ Light + Form is a two-service app:
 - Cart is a Hydrogen cart stored by session cookie.
 - Checkout redirects to Shopify hosted checkout through `cart.checkoutUrl`.
 - Product images/prices/variants use Hydrogen helpers/components where available.
-- Dev without Shopify Storefront env renders the bundled fallback catalog and disables cart.
+- Shopify Storefront env is required in dev and production.
 
-Required production env:
+Required frontend env:
 
 ```sh
 SESSION_SECRET=...
