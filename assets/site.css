@@ -1423,6 +1423,109 @@ html[data-theme="warm"] .staff-user-controls select {
   accent-color: var(--accent);
 }
 
+.health-page {
+  min-height: calc(100vh - 84px);
+  background: color-mix(in srgb, var(--bg-elevated) 68%, var(--bg));
+}
+
+.health-shell {
+  padding: 72px 0;
+}
+
+.health-hero {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.health-hero h1,
+.health-card h2 {
+  margin: 0;
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 500;
+}
+
+.health-hero h1 {
+  font-size: clamp(2.4rem, 4vw, 4rem);
+  line-height: 0.98;
+}
+
+.health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.health-card {
+  background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-card);
+  padding: 22px;
+}
+
+.health-card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.health-card h2 {
+  font-size: 1.7rem;
+}
+
+.health-card-body {
+  display: grid;
+  gap: 10px;
+}
+
+.health-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+
+.health-row strong {
+  color: var(--text);
+  font-family: "Space Mono", monospace;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.health-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 7px 11px;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-family: "Space Mono", monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.health-pill.is-ok {
+  border-color: color-mix(in srgb, #14814a 62%, var(--line));
+  color: #14814a;
+}
+
+.health-pill.is-bad {
+  border-color: color-mix(in srgb, #b42318 62%, var(--line));
+  color: #b42318;
+}
+
 @media (max-width: 1040px) {
   .hero-shell,
   .page-hero-grid,
@@ -1464,6 +1567,10 @@ html[data-theme="warm"] .staff-user-controls select {
   }
 
   .staff-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .health-grid {
     grid-template-columns: 1fr;
   }
 
