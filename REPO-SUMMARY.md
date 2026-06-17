@@ -4,6 +4,7 @@ Light + Form is a two-service app:
 
 - Customer storefront: Hydrogen + React Router SSR.
 - Staff IMS backend: Node service on `:8787`.
+- Universal diagnostics: `/health`.
 
 ## Customer Frontend
 
@@ -31,6 +32,8 @@ PUBLIC_STAFF_API_BASE_URL=http://localhost:8787
 - `/staff` is still a frontend route, but it calls the backend service.
 - Staff browser code does not call Shopify directly.
 - Staff auth, RBAC, audit log, internal order records, supplier/bin/ops notes, and cost fields are local backend concerns.
+- Set `DATABASE_URL` to store IMS-only staff users, RBAC overrides, staff order records, and audit entries in Postgres.
+- Without `DATABASE_URL`, local development stores IMS-only data in JSON/JSONL files under `data/`.
 - Backend source mode is controlled by `STAFF_CATALOG_SOURCE`.
 
 When `STAFF_CATALOG_SOURCE=csv`:
@@ -56,6 +59,7 @@ SHOPIFY_ADMIN_ACCESS_TOKEN=...
 SHOPIFY_API_VERSION=2026-04
 SHOPIFY_LOCATION_ID=gid://shopify/Location/...
 STAFF_JWT_SECRET=...
+DATABASE_URL=postgres://...
 ```
 
 ## API Boundary

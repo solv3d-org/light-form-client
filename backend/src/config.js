@@ -21,6 +21,13 @@ function unquote(value) {
   return trimmed;
 }
 
+function databaseSsl(databaseUrl) {
+  const explicit = process.env.DATABASE_SSL;
+  if (explicit === "true") return true;
+  if (explicit === "false") return false;
+  return /[?&]sslmode=require\b/.test(databaseUrl || "");
+}
+
 export function loadEnv(cwd = process.cwd()) {
   for (const filename of [".env", ".env.local"]) {
     const filePath = path.join(cwd, filename);
@@ -56,6 +63,11 @@ export function getConfig(cwd = process.cwd()) {
       process.env.CORS_ORIGIN ||
       "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173",
     dataDir: process.env.DATA_DIR || path.join(cwd, "data"),
+    database: {
+      url: process.env.DATABASE_URL || "",
+      ssl: databaseSsl(process.env.DATABASE_URL || ""),
+      sslRejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false"
+    },
     catalog: {
       source: staffCatalogSource,
       productsCsvBaseline:

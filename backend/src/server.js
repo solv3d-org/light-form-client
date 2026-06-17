@@ -11,9 +11,9 @@ import { summarizeDraftOrder } from "./shopifyAdmin.js";
 const config = getConfig();
 assertRuntimeConfig(config);
 
-const store = new StaffStore(config.dataDir);
+const store = await StaffStore.create(config);
 const catalogProvider = createCatalogProvider(config);
-const bootstrappedUser = store.ensureBootstrapAdmin(config);
+const bootstrappedUser = await store.ensureBootstrapAdmin(config);
 
 if (bootstrappedUser) {
   console.log(`[backend] bootstrapped admin email=${bootstrappedUser.email}`);
@@ -58,7 +58,7 @@ async function requireUser(req) {
 
   try {
     const session = verifySessionToken(token, config);
-    const user = store.findUserById(session.sub);
+    const user = await store.findUserById(session.sub);
     if (!user || !user.active) throw new Error("Inactive staff user.");
     return user;
   } catch (error) {
@@ -105,9 +105,9 @@ function logRequest({ req, url, user, status, elapsedMs, error = null }) {
   console.log(`[api] ${req.method} ${url.pathname} status=${status} actor=${actor} ms=${elapsedMs}${suffix}`);
 }
 
-function auditRequest({ route, req, url, user, status, elapsedMs, error = null }) {
+async function auditRequest({ route, req, url, user, status, elapsedMs, error = null }) {
   if (!user || url.pathname === "/api/audit") return;
-  store.appendAudit(error ? "api.request_failed" : "api.request", user, {
+  await store.appendAudit(error ? "api.request_failed" : "api.request", user, {
     method: req.method,
     path: url.pathname,
     permission: route?.options?.permission || "",
@@ -130,21 +130,19 @@ const routes = [
     shopifyConfigured: isShopifyAdminConfigured(config),
     commerceMode: config.catalog.source === "shopify" ? "shopify-admin" : "csv",
     storage: {
-      users: "json",
-      orders: "json",
-      audit: "jsonl",
+      ...store.storage(),
       catalog: config.catalog.source === "shopify" ? "shopify-admin" : "csv"
     },
-    users: store.listUsers().length,
+    users: (await store.listUsers()).length,
     timestamp: new Date().toISOString()
   })),
 
   route("POST", "/api/auth/login", { auth: false }, async ({ body }) => {
-    const user = store.findUserByEmail(body.email);
+    const user = await store.findUserByEmail(body.email);
     if (!user || !user.active || !verifyPassword(body.password || "", user.passwordHash)) {
       throw new HttpError(401, "Invalid email or password.");
     }
-    store.appendAudit("auth.login", user, { email: user.email });
+    await store.appendAudit("auth.login", user, { email: user.email });
     return {
       token: createSessionToken(user, config),
       staff: publicUser(user)
@@ -153,7 +151,7 @@ const routes = [
 
   route("GET", "/api/auth/me", {}, async ({ user }) => ({ staff: publicUser(user) })),
 
-  route("GET", "/api/staff/users", { permission: "user:manage" }, async () => ({ users: store.listUsers() })),
+  route("GET", "/api/staff/users", { permission: "user:manage" }, async () => ({ users: await store.listUsers() })),
 
   route("GET", "/api/staff/permissions", { permission: "user:manage" }, async () => ({
     roles: ROLES,
@@ -163,7 +161,7 @@ const routes = [
 
   route("POST", "/api/staff/users", { permission: "user:manage" }, async ({ body, user }) => {
     try {
-      return { staff: store.createUser(body, user) };
+      return { staff: await store.createUser(body, user) };
     } catch (error) {
       throw mapStoreError(error);
     }
@@ -173,7 +171,7 @@ const routes = [
     if (params.id === user.id) assertSelfUpdateAllowed(user, body);
 
     try {
-      return { staff: store.updateUser(params.id, body, user) };
+      return { staff: await store.updateUser(params.id, body, user) };
     } catch (error) {
       throw mapStoreError(error);
     }
@@ -214,11 +212,11 @@ const routes = [
   })),
 
   route("GET", "/api/orders", { permission: "order:read" }, async ({ url }) => ({
-    orders: store.listOrders(url.searchParams.get("status") || "")
+    orders: await store.listOrders(url.searchParams.get("status") || "")
   })),
 
   route("GET", "/api/orders/:id", { permission: "order:read" }, async ({ params }) => {
-    const order = store.findOrder(params.id);
+    const order = await store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
     return {
       order,
@@ -230,7 +228,7 @@ const routes = [
     assertDiscountAccess(user, body);
     assertCostAccess(user, body.internal);
     const draftOrder = await catalogProvider.createDraftOrder(body);
-    const order = store.createOrderRecord({ draftOrder, input: body, actor: user });
+    const order = await store.createOrderRecord({ draftOrder, input: body, actor: user });
     return {
       order,
       shopifyDraftOrder: summarizeDraftOrder(draftOrder)
@@ -239,10 +237,10 @@ const routes = [
 
   route("PATCH", "/api/orders/:id", { permission: "order:update" }, async ({ params, body, user }) => {
     assertCostAccess(user, body.internal);
-    const current = store.findOrder(params.id);
+    const current = await store.findOrder(params.id);
     if (!current) throw new HttpError(404, "Order record not found.");
     return {
-      order: store.updateOrder(params.id, {
+      order: await store.updateOrder(params.id, {
         fulfillment: body.fulfillment || current.fulfillment,
         internal: body.internal || current.internal
       }, user)
@@ -250,23 +248,23 @@ const routes = [
   }),
 
   route("POST", "/api/orders/:id/send-invoice", { permission: "invoice:send" }, async ({ params, body, user }) => {
-    const order = store.findOrder(params.id);
+    const order = await store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
     const draftOrder = await catalogProvider.sendDraftOrderInvoice(order.shopifyDraftOrderId, body);
     return {
-      order: store.updateOrder(order.id, { invoiceSentAt: new Date().toISOString() }, user),
+      order: await store.updateOrder(order.id, { invoiceSentAt: new Date().toISOString() }, user),
       shopifyDraftOrder: summarizeDraftOrder(draftOrder)
     };
   }),
 
   route("POST", "/api/orders/:id/complete", { permission: "order:complete" }, async ({ params, body, user }) => {
-    const order = store.findOrder(params.id);
+    const order = await store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
     const draftOrder = await catalogProvider.completeDraftOrder(order.shopifyDraftOrderId, {
       paymentPending: body.paymentPending === true
     });
     return {
-      order: store.updateOrder(order.id, {
+      order: await store.updateOrder(order.id, {
         status: "completed",
         completedAt: new Date().toISOString(),
         shopifyOrderId: draftOrder.order_id ? String(draftOrder.order_id) : order.shopifyOrderId
@@ -276,11 +274,11 @@ const routes = [
   }),
 
   route("POST", "/api/orders/:id/cancel", { permission: "order:cancel" }, async ({ params, user }) => {
-    const order = store.findOrder(params.id);
+    const order = await store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
     await catalogProvider.deleteDraftOrder(order.shopifyDraftOrderId);
     return {
-      order: store.updateOrder(order.id, {
+      order: await store.updateOrder(order.id, {
         status: "canceled",
         canceledAt: new Date().toISOString()
       }, user)
@@ -288,7 +286,7 @@ const routes = [
   }),
 
   route("GET", "/api/audit", { permission: "audit:read" }, async ({ url }) => ({
-    entries: store.listAudit({
+    entries: await store.listAudit({
       limit: url.searchParams.get("limit") || 100,
       action: url.searchParams.get("action") || "",
       actorId: url.searchParams.get("actorId") || ""
@@ -326,13 +324,13 @@ async function handleRequest(req, res) {
 
     const elapsedMs = Date.now() - started;
     logRequest({ req, url, user, status: 200, elapsedMs });
-    auditRequest({ route: found.route, req, url, user, status: 200, elapsedMs });
+    await auditRequest({ route: found.route, req, url, user, status: 200, elapsedMs });
     return sendJson(res, 200, payload, corsHeaders);
   } catch (error) {
     const status = error instanceof HttpError ? error.status : error.status || 500;
     const elapsedMs = Date.now() - started;
     logRequest({ ...context, status, elapsedMs, error });
-    auditRequest({ ...context, status, elapsedMs, error });
+    await auditRequest({ ...context, status, elapsedMs, error });
     if (error.status && !(error instanceof HttpError)) {
       return sendError(res, new HttpError(error.status, error.message), corsHeaders);
     }

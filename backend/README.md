@@ -13,6 +13,8 @@ The first start bootstraps one admin if `data/staff-users.json` is empty and `BO
 
 Set `STAFF_CATALOG_SOURCE=csv` for MVP/local testing or `STAFF_CATALOG_SOURCE=shopify` for live Admin API mode. CSV mode copies the dated preserved snapshots into `data/local-shopify-products.csv` and `data/local-shopify-inventory.csv` if those working files are missing, then mutates only the working copies.
 
+Set `DATABASE_URL` to use Postgres for IMS-only data: staff users, RBAC overrides, staff order records, and audit entries. Without `DATABASE_URL`, local development uses `data/staff-users.json`, `data/staff-orders.json`, and `data/staff-audit-log.jsonl`.
+
 Before switching to `STAFF_CATALOG_SOURCE=shopify`, set `SHOPIFY_LOCATION_ID=gid://shopify/Location/...` and run `npm run shopify:preflight` from the repo root. The preflight performs read-only schema/location checks and does not create or update Shopify products.
 
 ## Roles
@@ -31,6 +33,7 @@ Admins can add per-user permission overrides from `/staff`. Overrides are stored
 All protected routes use `Authorization: Bearer <token>`.
 
 ```sh
+GET /health
 POST /api/auth/login
 GET /api/auth/me
 GET /api/staff/users
@@ -71,7 +74,7 @@ Customer-hidden fields live in local `data/staff-orders.json`, not public fronte
 ## Logging
 
 - Server requests log one `[api]` line with method, path, status, actor, and latency.
-- Staff interactions append to `data/staff-audit-log.jsonl`.
+- Staff interactions append to Postgres when `DATABASE_URL` is set, otherwise `data/staff-audit-log.jsonl`.
 - Admins can inspect audit entries in `/staff` or call `GET /api/audit`.
 
 ## Customer Visibility
