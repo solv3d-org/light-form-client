@@ -114,10 +114,20 @@ const PRODUCT_VARIANT_FRAGMENT = `#graphql
   }
 `;
 
+const SHOP_SORT_OPTIONS = new Set(["CREATED_AT", "TITLE", "PRICE", "BEST_SELLING"]);
+
 const PRODUCTS_QUERY = `#graphql
-  query Products($first: Int!, $after: String, $country: CountryCode, $language: LanguageCode)
+  query Products(
+    $after: String
+    $country: CountryCode
+    $first: Int!
+    $language: LanguageCode
+    $query: String
+    $reverse: Boolean!
+    $sortKey: ProductSortKeys!
+  )
   @inContext(country: $country, language: $language) {
-    products(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
+    products(first: $first, after: $after, query: $query, sortKey: $sortKey, reverse: $reverse) {
       pageInfo {
         hasNextPage
         endCursor
@@ -286,7 +296,39 @@ export function normalizeShopifyProduct(product, index = 0, config, variantOverr
   };
 }
 
-export async function loadCatalog(context) {
+function readShopFilters(request) {
+  const url = new URL(request.url);
+  const search = (url.searchParams.get("q") || "").trim();
+  const availability = url.searchParams.get("availability") || "all";
+  const sort = url.searchParams.get("sort") || "newest";
+
+  const queryTerms = [];
+  if (search) queryTerms.push(search);
+  if (availability === "available") queryTerms.push("available_for_sale:true");
+  if (availability === "sold-out") queryTerms.push("available_for_sale:false");
+
+  const sortMap = {
+    newest: { sortKey: "CREATED_AT", reverse: true },
+    "title-asc": { sortKey: "TITLE", reverse: false },
+    "price-asc": { sortKey: "PRICE", reverse: false },
+    "price-desc": { sortKey: "PRICE", reverse: true },
+    "best-selling": { sortKey: "BEST_SELLING", reverse: false }
+  };
+  const sortConfig = sortMap[sort] || sortMap.newest;
+  const sortKey = SHOP_SORT_OPTIONS.has(sortConfig.sortKey) ? sortConfig.sortKey : "CREATED_AT";
+
+  return {
+    search,
+    availability,
+    sort,
+    query: queryTerms.join(" "),
+    sortKey,
+    reverse: sortConfig.reverse
+  };
+}
+
+export async function loadCatalog(context, request) {
+  const filters = readShopFilters(request);
   const products = [];
   let after = null;
   let hasNextPage = true;
@@ -295,7 +337,13 @@ export async function loadCatalog(context) {
     const first = Math.min(PRODUCT_PAGE_SIZE, CATALOG_PRODUCT_LIMIT - products.length);
     const data = await context.storefront.query(PRODUCTS_QUERY, {
       cache: context.storefront.CacheShort(),
-      variables: { first, after }
+      variables: {
+        first,
+        after,
+        query: filters.query || null,
+        sortKey: filters.sortKey,
+        reverse: filters.reverse
+      }
     });
     const connection = data.products;
     products.push(...connection.nodes);
@@ -314,6 +362,7 @@ export async function loadCatalog(context) {
       sourceUrl: `https://${context.shopifyConfig.storeDomain}`,
       sourceLabel: "Shopify catalog",
       mode: "shopify",
+      filters,
       syncedAt: now.toISOString(),
       syncedLabel: new Intl.DateTimeFormat("en-SG", {
         dateStyle: "long",
