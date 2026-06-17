@@ -1,36 +1,101 @@
 export const DEFAULT_SHOPIFY_API_VERSION = "2026-04";
 
-const SHOPIFY_PLACEHOLDER_VALUES = new Set(["your-store.myshopify.com", "your_storefront_public_token"]);
+const PLACEHOLDER_STORE_DOMAIN = "placeholder.myshopify.com";
+const PLACEHOLDER_STOREFRONT_TOKEN = "placeholder";
+const SHOPIFY_PLACEHOLDER_VALUES = new Set([
+  "",
+  "your-store.myshopify.com",
+  "your_storefront_public_token",
+  PLACEHOLDER_STORE_DOMAIN,
+  PLACEHOLDER_STOREFRONT_TOKEN
+]);
 
-export const shopifyConfig = {
-  storeDomain: normalizeStoreDomain(import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || ""),
-  storefrontAccessToken: import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || "",
-  apiVersion: import.meta.env.VITE_SHOPIFY_API_VERSION || DEFAULT_SHOPIFY_API_VERSION
-};
-
-export function normalizeStoreDomain(domain) {
-  return domain
+export function normalizeStoreDomain(domain = "") {
+  return String(domain)
     .replace(/^https?:\/\//, "")
     .replace(/\/.*$/, "")
     .trim();
 }
 
-export function isShopifyConfigured(config = shopifyConfig) {
+function readRuntimeEnv(env = {}) {
+  return { ...process.env, ...env };
+}
+
+export function getRuntimeShopifyConfig(env = {}) {
+  const source = readRuntimeEnv(env);
+  const storeDomain = normalizeStoreDomain(
+    source.PUBLIC_STORE_DOMAIN || source.SHOPIFY_STORE_DOMAIN || source.VITE_SHOPIFY_STORE_DOMAIN || ""
+  );
+  const storefrontAccessToken =
+    source.PUBLIC_STOREFRONT_API_TOKEN ||
+    source.SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
+    source.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
+    "";
+  const apiVersion =
+    source.PUBLIC_STOREFRONT_API_VERSION ||
+    source.SHOPIFY_API_VERSION ||
+    source.VITE_SHOPIFY_API_VERSION ||
+    DEFAULT_SHOPIFY_API_VERSION;
+  const checkoutDomain = normalizeStoreDomain(source.PUBLIC_CHECKOUT_DOMAIN || storeDomain);
+
+  return {
+    storeDomain,
+    storefrontAccessToken,
+    apiVersion,
+    checkoutDomain
+  };
+}
+
+export function isShopifyConfigured(config) {
   return Boolean(
-    config.storeDomain &&
-      config.storefrontAccessToken &&
-      config.apiVersion &&
+    config?.storeDomain &&
+      config?.storefrontAccessToken &&
+      config?.apiVersion &&
       !SHOPIFY_PLACEHOLDER_VALUES.has(config.storeDomain) &&
       !SHOPIFY_PLACEHOLDER_VALUES.has(config.storefrontAccessToken)
   );
 }
 
-export function getStorefrontEndpoint(config = shopifyConfig) {
-  if (!isShopifyConfigured(config)) return "";
-  return `https://${config.storeDomain}/api/${config.apiVersion}/graphql.json`;
+export function getStaffApiBaseUrl(env = {}) {
+  const source = readRuntimeEnv(env);
+  return String(source.PUBLIC_STAFF_API_BASE_URL || source.VITE_STAFF_API_BASE_URL || "http://localhost:8787").replace(
+    /\/$/,
+    ""
+  );
 }
 
-export function getShopifyProductUrl(handle, config = shopifyConfig) {
-  if (!config.storeDomain || !handle) return "";
+export function getHydrogenRuntime(env = {}) {
+  const source = readRuntimeEnv(env);
+  const shopifyConfig = getRuntimeShopifyConfig(source);
+  const shopifyConfigured = isShopifyConfigured(shopifyConfig);
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (isProduction && !shopifyConfigured) {
+    throw new Error("PUBLIC_STORE_DOMAIN and PUBLIC_STOREFRONT_API_TOKEN are required in production.");
+  }
+
+  if (isProduction && !source.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET is required in production.");
+  }
+
+  return {
+    env: {
+      ...source,
+      SESSION_SECRET: source.SESSION_SECRET || "dev-session-secret",
+      PUBLIC_STORE_DOMAIN: shopifyConfigured ? shopifyConfig.storeDomain : PLACEHOLDER_STORE_DOMAIN,
+      PUBLIC_STOREFRONT_API_TOKEN: shopifyConfigured
+        ? shopifyConfig.storefrontAccessToken
+        : PLACEHOLDER_STOREFRONT_TOKEN,
+      PUBLIC_STOREFRONT_ID: source.PUBLIC_STOREFRONT_ID || "",
+      PUBLIC_CHECKOUT_DOMAIN: shopifyConfigured ? shopifyConfig.checkoutDomain || shopifyConfig.storeDomain : PLACEHOLDER_STORE_DOMAIN
+    },
+    shopifyConfig,
+    shopifyConfigured,
+    staffApiBaseUrl: getStaffApiBaseUrl(source)
+  };
+}
+
+export function getShopifyProductUrl(handle, config) {
+  if (!config?.storeDomain || !handle) return "";
   return `https://${config.storeDomain}/products/${handle}`;
 }

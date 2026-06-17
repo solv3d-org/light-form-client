@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { useCart } from "../context/CartContext";
+import { useOptimisticCart } from "@shopify/hydrogen";
+import { NavLink, useLocation, useRouteLoaderData } from "react-router";
+import { useCartDrawer } from "../context/CartDrawerContext";
 import CartDrawer from "./CartDrawer";
 
 const pages = [
@@ -18,12 +19,14 @@ const footerLinks = [
 ];
 
 function HeaderCartButton() {
-  const { isEnabled, openCart, totalQuantity } = useCart();
-  if (!isEnabled) return null;
+  const rootData = useRouteLoaderData("root");
+  const cart = useOptimisticCart(rootData?.cart);
+  const { openCart } = useCartDrawer();
+  if (!rootData?.shopifyConfigured) return null;
 
   return (
     <button className="cart-toggle" type="button" onClick={openCart}>
-      Cart <span>{totalQuantity}</span>
+      Cart <span>{cart?.totalQuantity || 0}</span>
     </button>
   );
 }
@@ -33,7 +36,7 @@ export default function SiteLayout({ pageTitle, children }) {
   const location = useLocation();
 
   useEffect(() => {
-    document.title = pageTitle;
+    if (pageTitle) document.title = pageTitle;
   }, [pageTitle]);
 
   useEffect(() => {

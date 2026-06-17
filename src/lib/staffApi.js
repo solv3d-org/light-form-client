@@ -1,8 +1,16 @@
 const STAFF_TOKEN_KEY = "light-form-staff-token";
+let staffApiBaseUrl = "http://localhost:8787";
 
 export const staffApiConfig = {
-  baseUrl: (import.meta.env.VITE_STAFF_API_BASE_URL || "http://localhost:8787").replace(/\/$/, "")
+  get baseUrl() {
+    return staffApiBaseUrl;
+  }
 };
+
+export function configureStaffApiBaseUrl(baseUrl) {
+  if (!baseUrl) return;
+  staffApiBaseUrl = String(baseUrl).replace(/\/$/, "");
+}
 
 export function getStaffToken() {
   try {

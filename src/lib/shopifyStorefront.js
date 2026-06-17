@@ -1,192 +1,223 @@
+import { getSelectedProductOptions } from "@shopify/hydrogen";
 import { catalogMetadata as fallbackMetadata, products as fallbackProducts } from "../data/products";
-import { getShopifyProductUrl, getStorefrontEndpoint, isShopifyConfigured, shopifyConfig } from "./shopifyConfig";
+import { getShopifyProductUrl } from "./shopifyConfig";
 
 const PRODUCT_PAGE_SIZE = 100;
-const CART_LINE_PAGE_SIZE = 100;
 const FEATURED_COUNT = 12;
-
 const MONEY_FORMATTER_CACHE = new Map();
 
-const PRODUCT_FIELDS = `
-  id
-  title
-  handle
-  description
-  vendor
-  productType
-  availableForSale
-  featuredImage {
+const MONEY_FRAGMENT = `#graphql
+  fragment MoneyFields on MoneyV2 {
+    amount
+    currencyCode
+  }
+`;
+
+const IMAGE_FRAGMENT = `#graphql
+  fragment ImageFields on Image {
+    id
     url
     altText
-  }
-  images(first: 1) {
-    nodes {
-      url
-      altText
-    }
-  }
-  collections(first: 1) {
-    nodes {
-      title
-    }
-  }
-  priceRange {
-    minVariantPrice {
-      amount
-      currencyCode
-    }
-    maxVariantPrice {
-      amount
-      currencyCode
-    }
-  }
-  variants(first: 25) {
-    nodes {
-      id
-      title
-      sku
-      availableForSale
-      image {
-        url
-        altText
-      }
-      price {
-        amount
-        currencyCode
-      }
-      selectedOptions {
-        name
-        value
-      }
-    }
+    width
+    height
   }
 `;
 
-const CART_FIELDS = `
-  id
-  checkoutUrl
-  totalQuantity
-  cost {
-    subtotalAmount {
-      amount
-      currencyCode
+const PRODUCT_CARD_FRAGMENT = `#graphql
+  fragment ProductCardFields on Product {
+    id
+    title
+    handle
+    description
+    vendor
+    productType
+    availableForSale
+    featuredImage {
+      ...ImageFields
     }
-    totalAmount {
-      amount
-      currencyCode
-    }
-  }
-  lines(first: ${CART_LINE_PAGE_SIZE}) {
-    nodes {
-      id
-      quantity
-      cost {
-        totalAmount {
-          amount
-          currencyCode
-        }
+    images(first: 1) {
+      nodes {
+        ...ImageFields
       }
-      merchandise {
-        ... on ProductVariant {
-          id
-          title
-          sku
-          availableForSale
-          image {
-            url
-            altText
-          }
-          price {
-            amount
-            currencyCode
-          }
-          product {
-            id
-            title
-            handle
-          }
+    }
+    collections(first: 1) {
+      nodes {
+        title
+      }
+    }
+    priceRange {
+      minVariantPrice {
+        ...MoneyFields
+      }
+      maxVariantPrice {
+        ...MoneyFields
+      }
+    }
+    compareAtPriceRange {
+      minVariantPrice {
+        ...MoneyFields
+      }
+      maxVariantPrice {
+        ...MoneyFields
+      }
+    }
+    variants(first: 25) {
+      nodes {
+        id
+        title
+        sku
+        availableForSale
+        image {
+          ...ImageFields
+        }
+        price {
+          ...MoneyFields
+        }
+        compareAtPrice {
+          ...MoneyFields
+        }
+        selectedOptions {
+          name
+          value
         }
       }
     }
   }
+  ${MONEY_FRAGMENT}
+  ${IMAGE_FRAGMENT}
 `;
 
-const PRODUCTS_QUERY = `
-  query Products($first: Int!, $after: String) {
+const PRODUCT_VARIANT_FRAGMENT = `#graphql
+  fragment ProductVariantFields on ProductVariant {
+    id
+    title
+    sku
+    availableForSale
+    image {
+      ...ImageFields
+    }
+    price {
+      ...MoneyFields
+    }
+    compareAtPrice {
+      ...MoneyFields
+    }
+    selectedOptions {
+      name
+      value
+    }
+    product {
+      id
+      title
+      handle
+    }
+  }
+`;
+
+const PRODUCTS_QUERY = `#graphql
+  query Products($first: Int!, $after: String, $country: CountryCode, $language: LanguageCode)
+  @inContext(country: $country, language: $language) {
     products(first: $first, after: $after, sortKey: CREATED_AT, reverse: true) {
       pageInfo {
         hasNextPage
         endCursor
       }
       nodes {
-        ${PRODUCT_FIELDS}
+        ...ProductCardFields
       }
     }
   }
+  ${PRODUCT_CARD_FRAGMENT}
 `;
 
-const CART_QUERY = `
-  query Cart($id: ID!) {
-    cart(id: $id) {
-      ${CART_FIELDS}
+const PRODUCT_QUERY = `#graphql
+  query Product(
+    $country: CountryCode
+    $handle: String!
+    $language: LanguageCode
+    $selectedOptions: [SelectedOptionInput!]!
+  ) @inContext(country: $country, language: $language) {
+    product(handle: $handle) {
+      id
+      title
+      vendor
+      handle
+      description
+      descriptionHtml
+      productType
+      availableForSale
+      encodedVariantExistence
+      encodedVariantAvailability
+      featuredImage {
+        ...ImageFields
+      }
+      images(first: 10) {
+        nodes {
+          ...ImageFields
+        }
+      }
+      collections(first: 1) {
+        nodes {
+          title
+        }
+      }
+      priceRange {
+        minVariantPrice {
+          ...MoneyFields
+        }
+        maxVariantPrice {
+          ...MoneyFields
+        }
+      }
+      compareAtPriceRange {
+        minVariantPrice {
+          ...MoneyFields
+        }
+        maxVariantPrice {
+          ...MoneyFields
+        }
+      }
+      options {
+        name
+        optionValues {
+          name
+          firstSelectableVariant {
+            ...ProductVariantFields
+          }
+          swatch {
+            color
+            image {
+              previewImage {
+                url
+              }
+            }
+          }
+        }
+      }
+      selectedOrFirstAvailableVariant(
+        selectedOptions: $selectedOptions
+        ignoreUnknownOptions: true
+        caseInsensitiveMatch: true
+      ) {
+        ...ProductVariantFields
+      }
+      adjacentVariants(selectedOptions: $selectedOptions) {
+        ...ProductVariantFields
+      }
+      variants(first: 50) {
+        nodes {
+          ...ProductVariantFields
+        }
+      }
+      seo {
+        description
+        title
+      }
     }
   }
-`;
-
-const CART_CREATE_MUTATION = `
-  mutation CartCreate($input: CartInput!) {
-    cartCreate(input: $input) {
-      cart {
-        ${CART_FIELDS}
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const CART_LINES_ADD_MUTATION = `
-  mutation CartLinesAdd($cartId: ID!, $lines: [CartLineInput!]!) {
-    cartLinesAdd(cartId: $cartId, lines: $lines) {
-      cart {
-        ${CART_FIELDS}
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const CART_LINES_UPDATE_MUTATION = `
-  mutation CartLinesUpdate($cartId: ID!, $lines: [CartLineUpdateInput!]!) {
-    cartLinesUpdate(cartId: $cartId, lines: $lines) {
-      cart {
-        ${CART_FIELDS}
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const CART_LINES_REMOVE_MUTATION = `
-  mutation CartLinesRemove($cartId: ID!, $lineIds: [ID!]!) {
-    cartLinesRemove(cartId: $cartId, lineIds: $lineIds) {
-      cart {
-        ${CART_FIELDS}
-      }
-      userErrors {
-        field
-        message
-      }
-    }
-  }
+  ${MONEY_FRAGMENT}
+  ${IMAGE_FRAGMENT}
+  ${PRODUCT_VARIANT_FRAGMENT}
 `;
 
 export function formatMoney(money) {
@@ -217,12 +248,16 @@ export function formatPriceRange(priceRange) {
 
 function selectVariant(product) {
   const variants = product.variants?.nodes || [];
-  return variants.find((variant) => variant.availableForSale) || variants[0] || null;
+  return product.selectedOrFirstAvailableVariant || variants.find((variant) => variant.availableForSale) || variants[0] || null;
 }
 
-export function normalizeShopifyProduct(product, index) {
-  const variant = selectVariant(product);
-  const image = product.featuredImage || product.images?.nodes?.[0] || variant?.image || null;
+function selectImage(product, variant) {
+  return variant?.image || product.featuredImage || product.images?.nodes?.[0] || null;
+}
+
+export function normalizeShopifyProduct(product, index = 0, config, variantOverride) {
+  const variant = variantOverride || selectVariant(product);
+  const image = selectImage(product, variant);
   const category = product.productType || product.collections?.nodes?.[0]?.title || "Lighting";
   const availableForSale = Boolean(product.availableForSale && variant?.availableForSale);
 
@@ -234,13 +269,19 @@ export function normalizeShopifyProduct(product, index) {
     priceLabel: formatPriceRange(product.priceRange),
     image: image?.url || "",
     imageAlt: image?.altText || product.title,
+    imageData: image ? { ...image, altText: image.altText || product.title } : null,
     featured: index < FEATURED_COUNT,
-    sourceUrl: getShopifyProductUrl(product.handle),
+    sourceUrl: getShopifyProductUrl(product.handle, config),
     handle: product.handle,
     shopifyProductId: product.id,
     shopifyVariantId: variant?.id || "",
     availableForSale,
     checkoutEnabled: availableForSale && Boolean(variant?.id),
+    priceRange: product.priceRange,
+    compareAtPriceRange: product.compareAtPriceRange,
+    price: variant?.price || null,
+    compareAtPrice: variant?.compareAtPrice || null,
+    selectedVariant: variant,
     dataSource: "shopify"
   };
 }
@@ -257,104 +298,6 @@ function getFallbackHandle(product) {
   }
 }
 
-export function normalizeCart(cart) {
-  if (!cart) return null;
-
-  return {
-    id: cart.id,
-    checkoutUrl: cart.checkoutUrl,
-    totalQuantity: cart.totalQuantity || 0,
-    subtotalLabel: formatMoney(cart.cost?.subtotalAmount),
-    totalLabel: formatMoney(cart.cost?.totalAmount),
-    lines: (cart.lines?.nodes || []).map((line) => {
-      const merchandise = line.merchandise || {};
-      const product = merchandise.product || {};
-      const image = merchandise.image || {};
-
-      return {
-        id: line.id,
-        quantity: line.quantity,
-        title: product.title || merchandise.title || "Product",
-        variantTitle: merchandise.title === "Default Title" ? "" : merchandise.title,
-        sku: merchandise.sku || "",
-        productUrl: getShopifyProductUrl(product.handle),
-        image: image.url || "",
-        imageAlt: image.altText || product.title || merchandise.title || "Product",
-        lineTotalLabel: formatMoney(line.cost?.totalAmount),
-        availableForSale: Boolean(merchandise.availableForSale)
-      };
-    })
-  };
-}
-
-export async function shopifyStorefrontRequest(query, variables = {}, config = shopifyConfig) {
-  if (!isShopifyConfigured(config)) {
-    throw new Error("Shopify Storefront API is not configured.");
-  }
-
-  const response = await fetch(getStorefrontEndpoint(config), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Storefront-Access-Token": config.storefrontAccessToken
-    },
-    body: JSON.stringify({ query, variables })
-  });
-
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(`Shopify Storefront request failed: ${response.status} ${response.statusText}`);
-  }
-
-  if (payload?.errors?.length) {
-    throw new Error(payload.errors.map((error) => error.message).join("; "));
-  }
-
-  return payload.data;
-}
-
-function assertNoUserErrors(container, label) {
-  const userErrors = container?.userErrors || [];
-  if (userErrors.length) {
-    throw new Error(`${label}: ${userErrors.map((error) => error.message).join("; ")}`);
-  }
-}
-
-export async function fetchShopifyCatalog(config = shopifyConfig) {
-  const products = [];
-  let after = null;
-  let hasNextPage = true;
-
-  while (hasNextPage) {
-    const data = await shopifyStorefrontRequest(PRODUCTS_QUERY, { first: PRODUCT_PAGE_SIZE, after }, config);
-    const connection = data.products;
-    products.push(...connection.nodes);
-    hasNextPage = connection.pageInfo.hasNextPage;
-    after = connection.pageInfo.endCursor;
-  }
-
-  const normalizedProducts = products.map(normalizeShopifyProduct);
-  const now = new Date();
-
-  return {
-    products: normalizedProducts,
-    catalogMetadata: {
-      sourceUrl: `https://${config.storeDomain}`,
-      sourceLabel: "Shopify catalog",
-      mode: "shopify",
-      syncedAt: now.toISOString(),
-      syncedLabel: new Intl.DateTimeFormat("en-SG", {
-        dateStyle: "long",
-        timeStyle: "short",
-        timeZone: "Asia/Singapore"
-      }).format(now),
-      productCount: normalizedProducts.length,
-      featuredCount: Math.min(FEATURED_COUNT, normalizedProducts.length)
-    }
-  };
-}
-
 export function getFallbackCatalog() {
   return {
     products: fallbackProducts.map((product) => ({
@@ -368,67 +311,82 @@ export function getFallbackCatalog() {
       ...fallbackMetadata,
       sourceLabel: "Preview catalog",
       mode: "fallback"
-    }
+    },
+    catalogStatus: "fallback"
   };
 }
 
-export async function fetchCart(cartId) {
-  const data = await shopifyStorefrontRequest(CART_QUERY, { id: cartId });
-  return normalizeCart(data.cart);
+export async function loadCatalog(context) {
+  if (!context.shopifyConfigured) return getFallbackCatalog();
+
+  const products = [];
+  let after = null;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const data = await context.storefront.query(PRODUCTS_QUERY, {
+      cache: context.storefront.CacheShort(),
+      variables: { first: PRODUCT_PAGE_SIZE, after }
+    });
+    const connection = data.products;
+    products.push(...connection.nodes);
+    hasNextPage = connection.pageInfo.hasNextPage;
+    after = connection.pageInfo.endCursor;
+  }
+
+  const normalizedProducts = products.map((product, index) =>
+    normalizeShopifyProduct(product, index, context.shopifyConfig)
+  );
+  const now = new Date();
+
+  return {
+    products: normalizedProducts,
+    catalogMetadata: {
+      sourceUrl: `https://${context.shopifyConfig.storeDomain}`,
+      sourceLabel: "Shopify catalog",
+      mode: "shopify",
+      syncedAt: now.toISOString(),
+      syncedLabel: new Intl.DateTimeFormat("en-SG", {
+        dateStyle: "long",
+        timeStyle: "short",
+        timeZone: "Asia/Singapore"
+      }).format(now),
+      productCount: normalizedProducts.length,
+      featuredCount: Math.min(FEATURED_COUNT, normalizedProducts.length)
+    },
+    catalogStatus: "ready"
+  };
 }
 
-export async function createCart(variantId, quantity = 1) {
-  const data = await shopifyStorefrontRequest(CART_CREATE_MUTATION, {
-    input: {
-      lines: [
-        {
-          merchandiseId: variantId,
-          quantity
-        }
-      ]
+export async function loadProduct(context, handle, request) {
+  if (!context.shopifyConfigured) {
+    const catalog = getFallbackCatalog();
+    const product = catalog.products.find((item) => item.handle === handle || item.id === handle);
+    if (!product) throw new Response(null, { status: 404 });
+    return {
+      title: product.title,
+      product,
+      shopifyProduct: null,
+      storeDomain: "",
+      shopifyConfigured: false
+    };
+  }
+
+  const data = await context.storefront.query(PRODUCT_QUERY, {
+    cache: context.storefront.CacheShort(),
+    variables: {
+      handle,
+      selectedOptions: getSelectedProductOptions(request)
     }
   });
+  const product = data.product;
+  if (!product?.id) throw new Response(null, { status: 404 });
 
-  assertNoUserErrors(data.cartCreate, "Cart create failed");
-  return normalizeCart(data.cartCreate.cart);
-}
-
-export async function addCartLine(cartId, variantId, quantity = 1) {
-  const data = await shopifyStorefrontRequest(CART_LINES_ADD_MUTATION, {
-    cartId,
-    lines: [
-      {
-        merchandiseId: variantId,
-        quantity
-      }
-    ]
-  });
-
-  assertNoUserErrors(data.cartLinesAdd, "Cart update failed");
-  return normalizeCart(data.cartLinesAdd.cart);
-}
-
-export async function updateCartLine(cartId, lineId, quantity) {
-  const data = await shopifyStorefrontRequest(CART_LINES_UPDATE_MUTATION, {
-    cartId,
-    lines: [
-      {
-        id: lineId,
-        quantity
-      }
-    ]
-  });
-
-  assertNoUserErrors(data.cartLinesUpdate, "Cart line update failed");
-  return normalizeCart(data.cartLinesUpdate.cart);
-}
-
-export async function removeCartLine(cartId, lineId) {
-  const data = await shopifyStorefrontRequest(CART_LINES_REMOVE_MUTATION, {
-    cartId,
-    lineIds: [lineId]
-  });
-
-  assertNoUserErrors(data.cartLinesRemove, "Cart line removal failed");
-  return normalizeCart(data.cartLinesRemove.cart);
+  return {
+    title: product.seo?.title || product.title,
+    product: normalizeShopifyProduct(product, 0, context.shopifyConfig, product.selectedOrFirstAvailableVariant),
+    shopifyProduct: product,
+    storeDomain: context.shopifyConfig.storeDomain,
+    shopifyConfigured: true
+  };
 }

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import HomeCarousel from "../components/HomeCarousel";
 import MoodSetter from "../components/MoodSetter";
 

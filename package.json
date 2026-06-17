@@ -10,12 +10,13 @@
   "scripts": {
     "scrape:catalog": "node scripts/scrape-light-pro-catalog.mjs",
     "dev": "node scripts/dev-fullstack.mjs",
-    "dev:web": "vite",
+    "dev:web": "shopify hydrogen dev",
     "dev:backend": "npm --workspace backend run dev",
-    "build": "vite build",
-    "preview": "vite preview",
+    "build": "shopify hydrogen build",
+    "preview": "shopify hydrogen preview --build",
     "start:backend": "npm --workspace backend start",
-    "check": "npm --workspace backend run check",
+    "check:web": "shopify hydrogen build",
+    "check": "npm run check:web && npm --workspace backend run check",
     "test": "npm --workspace backend test",
     "shopify:audit-csv": "npm --workspace backend run shopify:audit-csv --",
     "shopify:audit-sample": "npm --workspace backend run shopify:audit-sample",
@@ -31,11 +32,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router-dom": "^7.9.4"
+    "@shopify/hydrogen": "^2026.4.4",
+    "@shopify/hydrogen-react": "^2026.4.3",
+    "graphql": "^16.14.2",
+    "isbot": "^5.1.43",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-router": "7.16.0",
+    "react-router-dom": "7.16.0"
   },
   "devDependencies": {
+    "@react-router/dev": "^7.16.0",
+    "@react-router/fs-routes": "^7.16.0",
+    "@shopify/cli": "^3.93.2",
+    "@shopify/mini-oxygen": "^4.1.0",
     "@vitejs/plugin-react": "^6.0.1",
     "vite": "^8.0.2"
   }

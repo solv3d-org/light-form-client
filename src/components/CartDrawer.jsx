@@ -1,21 +1,37 @@
-import { useCart } from "../context/CartContext";
+import { CartForm, Image, Money, useOptimisticCart } from "@shopify/hydrogen";
+import { Link, useFetchers, useRouteLoaderData } from "react-router";
+import { useCartDrawer } from "../context/CartDrawerContext";
+
+function getCartError(fetcher) {
+  const error = fetcher.data?.errors?.[0];
+  return error?.message || "";
+}
+
+function CartSubmitButton({ action, inputs, children, className }) {
+  return (
+    <CartForm route="/cart" action={action} inputs={inputs}>
+      {(fetcher) => (
+        <>
+          <button className={className} type="submit" disabled={fetcher.state !== "idle"}>
+            {children}
+          </button>
+          {getCartError(fetcher) && <p className="cart-error">{getCartError(fetcher)}</p>}
+        </>
+      )}
+    </CartForm>
+  );
+}
 
 export default function CartDrawer() {
-  const {
-    cart,
-    cartError,
-    cartStatus,
-    checkout,
-    closeCart,
-    isCartOpen,
-    removeLine,
-    setLineQuantity
-  } = useCart();
+  const rootData = useRouteLoaderData("root");
+  const cart = useOptimisticCart(rootData?.cart);
+  const { closeCart, isCartOpen } = useCartDrawer();
+  const fetchers = useFetchers();
+  const isUpdating = fetchers.some((fetcher) => fetcher.formAction === "/cart" && fetcher.state !== "idle");
 
-  if (!isCartOpen) return null;
+  if (!isCartOpen || !rootData?.shopifyConfigured) return null;
 
-  const lines = cart?.lines || [];
-  const isUpdating = cartStatus === "updating";
+  const lines = cart?.lines?.nodes || [];
 
   return (
     <div className="cart-layer" role="presentation">
@@ -31,57 +47,69 @@ export default function CartDrawer() {
           </button>
         </div>
 
-        {cartError && <p className="cart-error">{cartError}</p>}
-
         {lines.length === 0 ? (
           <p className="cart-empty">No products selected.</p>
         ) : (
           <ul className="cart-lines">
-            {lines.map((line) => (
-              <li className="cart-line" key={line.id}>
-                <div className="cart-line-image">
-                  {line.image && <img src={line.image} alt={line.imageAlt} loading="lazy" />}
-                </div>
-                <div className="cart-line-copy">
-                  <a href={line.productUrl} target="_blank" rel="noreferrer">
-                    {line.title}
-                  </a>
-                  {line.variantTitle && <span>{line.variantTitle}</span>}
-                  <strong>{line.lineTotalLabel}</strong>
-                  <div className="cart-line-actions">
-                    <button
-                      type="button"
-                      disabled={isUpdating}
-                      onClick={() => setLineQuantity(line.id, line.quantity - 1)}
-                    >
-                      -
-                    </button>
-                    <span>{line.quantity}</span>
-                    <button
-                      type="button"
-                      disabled={isUpdating}
-                      onClick={() => setLineQuantity(line.id, line.quantity + 1)}
-                    >
-                      +
-                    </button>
-                    <button type="button" disabled={isUpdating} onClick={() => removeLine(line.id)}>
-                      Remove
-                    </button>
+            {lines.map((line) => {
+              const merchandise = line.merchandise;
+              const product = merchandise?.product;
+              const image = merchandise?.image;
+              const variantTitle = merchandise?.title === "Default Title" ? "" : merchandise?.title;
+
+              return (
+                <li className="cart-line" key={line.id}>
+                  <div className="cart-line-image">
+                    {image?.url && <Image data={image} sizes="84px" loading="lazy" />}
                   </div>
-                </div>
-              </li>
-            ))}
+                  <div className="cart-line-copy">
+                    {product?.handle ? <Link to={`/products/${product.handle}`}>{product.title}</Link> : <strong>{product?.title}</strong>}
+                    {variantTitle && <span>{variantTitle}</span>}
+                    {line.cost?.totalAmount && (
+                      <strong>
+                        <Money data={line.cost.totalAmount} />
+                      </strong>
+                    )}
+                    <div className="cart-line-actions">
+                      <CartSubmitButton
+                        action={CartForm.ACTIONS.LinesUpdate}
+                        inputs={{ lines: [{ id: line.id, quantity: line.quantity - 1 }] }}
+                      >
+                        -
+                      </CartSubmitButton>
+                      <span>{line.quantity}</span>
+                      <CartSubmitButton
+                        action={CartForm.ACTIONS.LinesUpdate}
+                        inputs={{ lines: [{ id: line.id, quantity: line.quantity + 1 }] }}
+                      >
+                        +
+                      </CartSubmitButton>
+                      <CartSubmitButton action={CartForm.ACTIONS.LinesRemove} inputs={{ lineIds: [line.id] }}>
+                        Remove
+                      </CartSubmitButton>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
 
         <div className="cart-footer">
           <div className="cart-total">
             <span>Subtotal</span>
-            <strong>{cart?.subtotalLabel || "$0.00"}</strong>
+            <strong>{cart?.cost?.subtotalAmount ? <Money data={cart.cost.subtotalAmount} /> : "$0.00"}</strong>
           </div>
-          <button className="button-primary cart-checkout" type="button" disabled={!lines.length || isUpdating} onClick={checkout}>
+          <a
+            className="button-primary cart-checkout"
+            href={cart?.checkoutUrl || undefined}
+            aria-disabled={!lines.length || isUpdating}
+            onClick={(event) => {
+              if (!lines.length || isUpdating) event.preventDefault();
+            }}
+          >
             Checkout
-          </button>
+          </a>
         </div>
       </aside>
     </div>

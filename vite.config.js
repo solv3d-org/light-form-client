@@ -1,6 +1,22 @@
+import { reactRouter } from "@react-router/dev/vite";
+import { hydrogen } from "@shopify/hydrogen/vite";
+import { oxygen } from "@shopify/mini-oxygen/vite";
 import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  plugins: [react()]
+  plugins: [hydrogen(), oxygen(), reactRouter()],
+  resolve: {
+    tsconfigPaths: true
+  },
+  build: {
+    assetsInlineLimit: 0
+  },
+  ssr: {
+    optimizeDeps: {
+      include: ["react-router > set-cookie-parser", "react-router > cookie", "react-router"]
+    }
+  },
+  server: {
+    allowedHosts: [".tryhydrogen.dev"]
+  }
 });

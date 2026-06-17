@@ -1,35 +1,29 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useCart } from "../context/CartContext";
+import { CartForm } from "@shopify/hydrogen";
+import { Link } from "react-router";
+import { useCartDrawer } from "../context/CartDrawerContext";
 import ProductImage from "./ProductImage";
+import ProductPrice from "./ProductPrice";
+
+function getCartError(fetcher) {
+  const error = fetcher.data?.errors?.[0];
+  return error?.message || "";
+}
 
 export default function ProductCard({ product, variant = "default" }) {
   const isMinimal = variant === "minimal";
-  const { addProduct, cartStatus, isEnabled } = useCart();
-  const [actionError, setActionError] = useState("");
-  const canAddToCart = isEnabled && product.checkoutEnabled;
-  const isUpdating = cartStatus === "updating";
+  const { openCart } = useCartDrawer();
+  const canAddToCart = product.checkoutEnabled && product.shopifyVariantId;
   const productPath = product.handle ? `/products/${product.handle}` : "";
-
-  const handleAddToCart = async () => {
-    setActionError("");
-
-    try {
-      await addProduct(product);
-    } catch (error) {
-      setActionError(error.message);
-    }
-  };
 
   return (
     <article className={`product-card${isMinimal ? " product-card-minimal" : ""}`} id={`product-${product.id}`}>
       {productPath ? (
         <Link className="product-image-wrap" to={productPath}>
-          <ProductImage src={product.image} alt={product.imageAlt || product.title} />
+          <ProductImage src={product.image} alt={product.imageAlt || product.title} image={product.imageData} />
         </Link>
       ) : (
         <div className="product-image-wrap">
-          <ProductImage src={product.image} alt={product.imageAlt || product.title} />
+          <ProductImage src={product.image} alt={product.imageAlt || product.title} image={product.imageData} />
         </div>
       )}
       <div className="product-copy">
@@ -39,12 +33,32 @@ export default function ProductCard({ product, variant = "default" }) {
           </p>
         )}
         <h3>{productPath ? <Link to={productPath}>{product.title}</Link> : product.title}</h3>
-        <p className="product-price">{product.priceLabel}</p>
+        <ProductPrice product={product} />
         <div className="product-actions">
           {canAddToCart ? (
-            <button className="button-inline product-action" type="button" disabled={isUpdating} onClick={handleAddToCart}>
-              Add to cart
-            </button>
+            <CartForm
+              route="/cart"
+              action={CartForm.ACTIONS.LinesAdd}
+              inputs={{ lines: [{ merchandiseId: product.shopifyVariantId, quantity: 1 }] }}
+            >
+              {(fetcher) => (
+                <>
+                  <button
+                    className="button-inline product-action"
+                    type="submit"
+                    disabled={fetcher.state !== "idle"}
+                    onClick={openCart}
+                  >
+                    Add to cart
+                  </button>
+                  {getCartError(fetcher) && (
+                    <p className="product-action-error" role="alert">
+                      {getCartError(fetcher)}
+                    </p>
+                  )}
+                </>
+              )}
+            </CartForm>
           ) : (
             product.sourceUrl && (
               <a className="button-inline product-action" href={product.sourceUrl} target="_blank" rel="noreferrer">
@@ -53,11 +67,6 @@ export default function ProductCard({ product, variant = "default" }) {
             )
           )}
         </div>
-        {actionError && (
-          <p className="product-action-error" role="alert">
-            {actionError}
-          </p>
-        )}
       </div>
     </article>
   );

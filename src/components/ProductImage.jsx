@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { Image } from "@shopify/hydrogen";
 import { getCutoutSource } from "../lib/cutout";
 
-export default function ProductImage({ src, alt }) {
+export default function ProductImage({ src, alt, image }) {
   const [displaySrc, setDisplaySrc] = useState(src);
   const [isCutout, setIsCutout] = useState(false);
+  const imageData = image?.url ? { ...image, altText: image.altText || alt || "" } : null;
 
   useEffect(() => {
+    if (imageData) return undefined;
     let cancelled = false;
 
     setDisplaySrc(src);
@@ -20,7 +23,11 @@ export default function ProductImage({ src, alt }) {
     return () => {
       cancelled = true;
     };
-  }, [src]);
+  }, [imageData, src]);
+
+  if (imageData) {
+    return <Image data={imageData} sizes="(min-width: 900px) 33vw, 90vw" loading="lazy" />;
+  }
 
   if (!src) {
     return (
