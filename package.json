@@ -10,10 +10,10 @@
   "scripts": {
     "scrape:catalog": "node scripts/scrape-light-pro-catalog.mjs",
     "dev": "node scripts/dev-fullstack.mjs",
-    "dev:web": "shopify hydrogen dev",
+    "dev:web": "node --env-file-if-exists=.env --env-file-if-exists=.env.local ./node_modules/@shopify/cli/bin/run.js hydrogen dev",
     "dev:backend": "npm --workspace backend run dev",
     "build": "shopify hydrogen build",
-    "preview": "shopify hydrogen preview --build",
+    "preview": "node --env-file-if-exists=.env --env-file-if-exists=.env.local ./node_modules/@shopify/cli/bin/run.js hydrogen preview --build",
     "start:backend": "npm --workspace backend start",
     "check:web": "shopify hydrogen build",
     "check": "npm run check:web && npm --workspace backend run check",
