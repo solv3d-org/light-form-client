@@ -1,4 +1,3 @@
-import { Link } from "react-router";
 import HomeCarousel from "../components/HomeCarousel";
 import MoodSetter from "../components/MoodSetter";
 
@@ -65,23 +64,6 @@ export default function HomePage({ products, catalogMetadata, catalogStatus, the
               </div>
             </div>
           </article>
-
-          <aside className="teaser-panel">
-            <p className="section-kicker">Next</p>
-            <h2>Continue into the full site.</h2>
-            <p className="teaser-copy">
-              The shop page carries the full transparent grid, while the service and about pages unpack what makes this
-              closer to a guided interior-lighting partner than a generic online store.
-            </p>
-            <div className="hero-actions">
-              <Link className="button-secondary" to="/services">
-                View services
-              </Link>
-              <Link className="button-secondary" to="/about">
-                Read the story
-              </Link>
-            </div>
-          </aside>
         </div>
       </section>
     </main>

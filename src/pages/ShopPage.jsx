@@ -1,12 +1,6 @@
 import ProductCard from "../components/ProductCard";
 
-export default function ShopPage({ products, catalogMetadata, catalogStatus }) {
-  const sourceLabel = catalogStatus === "loading" ? "Loading catalog" : catalogMetadata.sourceLabel || "Product catalog";
-  const intro =
-    catalogMetadata.mode === "shopify"
-      ? `${catalogMetadata.productCount} pieces prepared for specification and purchase.`
-      : `${catalogMetadata.productCount} pieces prepared for specification.`;
-
+export default function ShopPage({ products }) {
   return (
     <main>
       <section className="page-hero">
@@ -14,10 +8,6 @@ export default function ShopPage({ products, catalogMetadata, catalogStatus }) {
           <div>
             <h1>Lighting, not clutter.</h1>
           </div>
-          <aside className="page-hero-aside">
-            <p className="page-kicker">{sourceLabel}</p>
-            <p className="page-intro">{intro}</p>
-          </aside>
         </div>
       </section>
 
