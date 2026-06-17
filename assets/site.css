@@ -665,6 +665,11 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   color: var(--text-soft);
 }
 
+.product-price s {
+  margin-left: 8px;
+  color: var(--muted);
+}
+
 .product-detail-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.82fr) minmax(0, 1fr);
@@ -691,6 +696,73 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
 .product-detail-copy h1 {
   max-width: 12ch;
+}
+
+.product-option-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.product-option-group {
+  display: grid;
+  gap: 8px;
+}
+
+.product-option-name {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.product-option-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.product-option-value {
+  min-width: 42px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.84rem;
+  text-decoration: none;
+}
+
+.product-option-value.is-active {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+
+.product-option-value:disabled,
+.product-option-value[aria-disabled="true"] {
+  opacity: 0.42;
+}
+
+.product-option-swatch {
+  display: block;
+  width: 22px;
+  height: 22px;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.product-option-swatch img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shop-pay-wrap {
+  max-width: 360px;
 }
 
 .product-actions {
@@ -819,6 +891,12 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   gap: 8px;
 }
 
+.cart-line-actions form,
+.product-actions form,
+.hero-actions form {
+  display: contents;
+}
+
 .cart-line-actions button {
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -838,6 +916,11 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .cart-checkout {
   justify-content: center;
   width: 100%;
+}
+
+.cart-checkout[aria-disabled="true"] {
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 .teaser-grid,

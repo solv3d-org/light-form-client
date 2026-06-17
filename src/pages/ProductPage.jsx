@@ -1,0 +1,211 @@
+import {
+  CartForm,
+  getAdjacentAndFirstAvailableVariants,
+  getProductOptions,
+  ShopPayButton,
+  useOptimisticVariant,
+  useSelectedOptionInUrlParam
+} from "@shopify/hydrogen";
+import { Link, useNavigate } from "react-router";
+import { normalizeShopifyProduct } from "../lib/shopifyStorefront";
+import { useCartDrawer } from "../context/CartDrawerContext";
+import ProductImage from "../components/ProductImage";
+import ProductPrice from "../components/ProductPrice";
+
+function getCartError(fetcher) {
+  const error = fetcher.data?.errors?.[0];
+  return error?.message || "";
+}
+
+function FallbackProductDetail({ product }) {
+  return (
+    <main>
+      <section className="page-hero">
+        <div className="site-shell product-detail-grid">
+          <div className="product-detail-media">
+            <ProductImage src={product.image} alt={product.imageAlt || product.title} image={product.imageData} />
+          </div>
+          <div className="product-detail-copy">
+            <p className="page-kicker">
+              {product.category} · Model {product.model}
+            </p>
+            <h1>{product.title}</h1>
+            <ProductPrice product={product} />
+            <div className="hero-actions">
+              {product.sourceUrl && (
+                <a className="button-primary" href={product.sourceUrl} target="_blank" rel="noreferrer">
+                  View product
+                </a>
+              )}
+              <Link className="button-secondary" to="/shop">
+                Back to shop
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function ProductOptions({ productOptions }) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="product-option-groups">
+      {productOptions.map((option) => {
+        if (option.optionValues.length <= 1) return null;
+
+        return (
+          <div className="product-option-group" key={option.name}>
+            <p className="product-option-name">{option.name}</p>
+            <div className="product-option-values">
+              {option.optionValues.map((value) => {
+                const className = `product-option-value${value.selected ? " is-active" : ""}`;
+                const swatchImage = value.swatch?.image?.previewImage?.url;
+                const swatchColor = value.swatch?.color;
+                const label = swatchImage || swatchColor ? (
+                  <span
+                    className="product-option-swatch"
+                    aria-label={value.name}
+                    style={{ backgroundColor: swatchColor || "transparent" }}
+                  >
+                    {swatchImage && <img src={swatchImage} alt={value.name} />}
+                  </span>
+                ) : (
+                  value.name
+                );
+
+                if (value.isDifferentProduct) {
+                  return (
+                    <Link
+                      className={className}
+                      key={`${option.name}-${value.name}`}
+                      preventScrollReset
+                      replace
+                      to={`/products/${value.handle}?${value.variantUriQuery}`}
+                    >
+                      {label}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <button
+                    className={className}
+                    type="button"
+                    key={`${option.name}-${value.name}`}
+                    disabled={!value.exists || !value.available}
+                    aria-disabled={!value.available}
+                    onClick={() => {
+                      if (!value.selected) {
+                        navigate(`?${value.variantUriQuery}`, {
+                          replace: true,
+                          preventScrollReset: true
+                        });
+                      }
+                    }}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
+  const { openCart } = useCartDrawer();
+  const selectedVariant = useOptimisticVariant(
+    shopifyProduct.selectedOrFirstAvailableVariant,
+    getAdjacentAndFirstAvailableVariants(shopifyProduct)
+  );
+  useSelectedOptionInUrlParam(selectedVariant?.selectedOptions || []);
+
+  const productOptions = getProductOptions({
+    ...shopifyProduct,
+    selectedOrFirstAvailableVariant: selectedVariant
+  });
+  const product = normalizeShopifyProduct(shopifyProduct, 0, { storeDomain }, selectedVariant);
+  const canAddToCart = selectedVariant?.availableForSale && selectedVariant?.id;
+
+  return (
+    <main>
+      <section className="page-hero">
+        <div className="site-shell product-detail-grid">
+          <div className="product-detail-media">
+            <ProductImage src={product.image} alt={product.imageAlt || product.title} image={product.imageData} />
+          </div>
+          <div className="product-detail-copy">
+            <p className="page-kicker">
+              {product.category} · Model {product.model}
+            </p>
+            <h1>{shopifyProduct.title}</h1>
+            <ProductPrice product={product} price={selectedVariant?.price} compareAtPrice={selectedVariant?.compareAtPrice} />
+            <ProductOptions productOptions={productOptions} />
+            <div className="hero-actions">
+              <CartForm
+                route="/cart"
+                action={CartForm.ACTIONS.LinesAdd}
+                inputs={{ lines: selectedVariant?.id ? [{ merchandiseId: selectedVariant.id, quantity: 1 }] : [] }}
+              >
+                {(fetcher) => (
+                  <>
+                    <button className="button-primary" type="submit" disabled={!canAddToCart || fetcher.state !== "idle"} onClick={openCart}>
+                      {canAddToCart ? "Add to cart" : "Sold out"}
+                    </button>
+                    {getCartError(fetcher) && (
+                      <p className="product-action-error" role="alert">
+                        {getCartError(fetcher)}
+                      </p>
+                    )}
+                  </>
+                )}
+              </CartForm>
+              <Link className="button-secondary" to="/shop">
+                Back to shop
+              </Link>
+            </div>
+            {canAddToCart && storeDomain && (
+              <div className="shop-pay-wrap">
+                <ShopPayButton storeDomain={storeDomain} variantIds={[selectedVariant.id]} />
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export default function ProductPage({ product, shopifyProduct, storeDomain }) {
+  if (!product) {
+    return (
+      <main>
+        <section className="page-hero">
+          <div className="site-shell page-hero-grid">
+            <div>
+              <p className="page-kicker">Catalog</p>
+              <h1>Product unavailable.</h1>
+            </div>
+            <aside className="page-hero-aside">
+              <Link className="button-secondary" to="/shop">
+                Back to shop
+              </Link>
+            </aside>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (shopifyProduct) {
+    return <ShopifyProductDetail shopifyProduct={shopifyProduct} storeDomain={storeDomain} />;
+  }
+
+  return <FallbackProductDetail product={product} />;
+}

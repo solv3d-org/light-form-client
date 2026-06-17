@@ -72,8 +72,12 @@ export default function CartDrawer() {
                     )}
                     <div className="cart-line-actions">
                       <CartSubmitButton
-                        action={CartForm.ACTIONS.LinesUpdate}
-                        inputs={{ lines: [{ id: line.id, quantity: line.quantity - 1 }] }}
+                        action={line.quantity <= 1 ? CartForm.ACTIONS.LinesRemove : CartForm.ACTIONS.LinesUpdate}
+                        inputs={
+                          line.quantity <= 1
+                            ? { lineIds: [line.id] }
+                            : { lines: [{ id: line.id, quantity: line.quantity - 1 }] }
+                        }
                       >
                         -
                       </CartSubmitButton>

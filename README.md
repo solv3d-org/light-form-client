@@ -9,9 +9,9 @@ npm install
 npm run dev
 ```
 
-Root `npm run dev` starts Vite and `backend/src/server.js`. `make dev`, `make dev-web`, and `make dev-backend` wrap the same commands.
+Root `npm run dev` starts the Hydrogen storefront and `backend/src/server.js`. `make dev`, `make dev-web`, and `make dev-backend` wrap the same commands.
 
-Copy `.env.example` to `.env.local` and set the `VITE_SHOPIFY_*` values to load Shopify products and cart checkout. Without those values, the app uses the bundled preview catalog and disables checkout.
+Copy `.env.example` to `.env.local` and set `PUBLIC_STORE_DOMAIN`, `PUBLIC_STOREFRONT_API_TOKEN`, and `SESSION_SECRET` to load Shopify products and cart checkout. Without Shopify values in dev, the app uses the bundled preview catalog and disables checkout. Production fails fast if Shopify Storefront env is missing.
 
 Backend config lives in `backend/.env.local`; copy `backend/.env.example` if needed.
 Set backend `STAFF_CATALOG_SOURCE=csv` for local MVP CRUD against working CSV copies, or `STAFF_CATALOG_SOURCE=shopify` for live Shopify Admin CRUD.
@@ -26,11 +26,11 @@ Run `npm run shopify:preflight` before live mode; it is read-only.
 
 ## Shopify Flow
 
-- Browser uses Storefront API `2026-04`.
-- Cart IDs persist in `localStorage`.
+- Hydrogen uses Storefront API `2026-04`.
+- Cart IDs persist in the Hydrogen session cookie.
 - Checkout redirects to Shopify hosted checkout through cart `checkoutUrl`.
-- Admin API credentials live in `backend/.env.local` and must not use `VITE_`.
-- Staff IMS UI is available at `/staff` and calls `VITE_STAFF_API_BASE_URL`.
+- Admin API credentials live in `backend/.env.local` and must not use `PUBLIC_`.
+- Staff IMS UI is available at `/staff` and calls `PUBLIC_STAFF_API_BASE_URL`.
 
 ## CSV Migration
 

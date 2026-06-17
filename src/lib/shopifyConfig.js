@@ -24,18 +24,11 @@ function readRuntimeEnv(env = {}) {
 export function getRuntimeShopifyConfig(env = {}) {
   const source = readRuntimeEnv(env);
   const storeDomain = normalizeStoreDomain(
-    source.PUBLIC_STORE_DOMAIN || source.SHOPIFY_STORE_DOMAIN || source.VITE_SHOPIFY_STORE_DOMAIN || ""
+    source.PUBLIC_STORE_DOMAIN || source.SHOPIFY_STORE_DOMAIN || ""
   );
   const storefrontAccessToken =
-    source.PUBLIC_STOREFRONT_API_TOKEN ||
-    source.SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
-    source.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN ||
-    "";
-  const apiVersion =
-    source.PUBLIC_STOREFRONT_API_VERSION ||
-    source.SHOPIFY_API_VERSION ||
-    source.VITE_SHOPIFY_API_VERSION ||
-    DEFAULT_SHOPIFY_API_VERSION;
+    source.PUBLIC_STOREFRONT_API_TOKEN || source.SHOPIFY_STOREFRONT_ACCESS_TOKEN || "";
+  const apiVersion = source.PUBLIC_STOREFRONT_API_VERSION || source.SHOPIFY_API_VERSION || DEFAULT_SHOPIFY_API_VERSION;
   const checkoutDomain = normalizeStoreDomain(source.PUBLIC_CHECKOUT_DOMAIN || storeDomain);
 
   return {
@@ -58,10 +51,7 @@ export function isShopifyConfigured(config) {
 
 export function getStaffApiBaseUrl(env = {}) {
   const source = readRuntimeEnv(env);
-  return String(source.PUBLIC_STAFF_API_BASE_URL || source.VITE_STAFF_API_BASE_URL || "http://localhost:8787").replace(
-    /\/$/,
-    ""
-  );
+  return String(source.PUBLIC_STAFF_API_BASE_URL || "http://localhost:8787").replace(/\/$/, "");
 }
 
 export function getHydrogenRuntime(env = {}) {
