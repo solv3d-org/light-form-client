@@ -23,22 +23,23 @@ export function links() {
   ];
 }
 
-export async function loader({ context }) {
+export async function loader({ context, request }) {
   const { cart, env, shopifyConfig, shopifyConfigured, staffApiBaseUrl, storefront } = context;
-  const cartData = shopifyConfigured ? await cart.get() : null;
+  const isHealthRoute = new URL(request.url).pathname === "/health";
+  const cartData = shopifyConfigured && !isHealthRoute ? await cart.get() : null;
 
   return {
     cart: cartData,
     shopifyConfigured,
     staffApiBaseUrl,
     storeDomain: shopifyConfig.storeDomain,
-    shop: shopifyConfigured
+    shop: shopifyConfigured && !isHealthRoute
       ? getShopAnalytics({
           storefront,
           publicStorefrontId: env.PUBLIC_STOREFRONT_ID
         })
       : null,
-    consent: shopifyConfigured
+    consent: shopifyConfigured && !isHealthRoute
       ? {
           checkoutDomain: shopifyConfig.checkoutDomain,
           storefrontAccessToken: shopifyConfig.storefrontAccessToken,

@@ -125,9 +125,18 @@ function mapStoreError(error) {
 const routes = [
   route("GET", "/health", { auth: false }, async () => ({
     ok: true,
+    service: "staff-ims-api",
     catalogSource: config.catalog.source,
     shopifyConfigured: isShopifyAdminConfigured(config),
-    users: store.listUsers().length
+    commerceMode: config.catalog.source === "shopify" ? "shopify-admin" : "csv",
+    storage: {
+      users: "json",
+      orders: "json",
+      audit: "jsonl",
+      catalog: config.catalog.source === "shopify" ? "shopify-admin" : "csv"
+    },
+    users: store.listUsers().length,
+    timestamp: new Date().toISOString()
   })),
 
   route("POST", "/api/auth/login", { auth: false }, async ({ body }) => {

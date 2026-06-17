@@ -5,7 +5,11 @@ import { createHydrogenRouterContext } from "./app/lib/context";
 export default {
   async fetch(request, env, executionContext) {
     try {
-      const hydrogenContext = await createHydrogenRouterContext(request, env, executionContext);
+      const pathname = new URL(request.url).pathname;
+      const isHealthRoute = pathname === "/health";
+      const hydrogenContext = await createHydrogenRouterContext(request, env, executionContext, {
+        requireShopify: !isHealthRoute
+      });
       const handleRequest = createRequestHandler({
         build: serverBuild,
         mode: process.env.NODE_ENV,

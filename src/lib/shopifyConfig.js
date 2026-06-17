@@ -1,11 +1,13 @@
 export const DEFAULT_SHOPIFY_API_VERSION = "2026-04";
 
+const DIAGNOSTIC_STORE_DOMAIN = "placeholder.myshopify.com";
+const DIAGNOSTIC_STOREFRONT_TOKEN = "placeholder";
 const SHOPIFY_PLACEHOLDER_VALUES = new Set([
   "",
   "your-store.myshopify.com",
   "your_storefront_public_token",
-  "placeholder.myshopify.com",
-  "placeholder"
+  DIAGNOSTIC_STORE_DOMAIN,
+  DIAGNOSTIC_STOREFRONT_TOKEN
 ]);
 
 export function normalizeStoreDomain(domain = "") {
@@ -52,13 +54,14 @@ export function getStaffApiBaseUrl(env = {}) {
   return String(source.PUBLIC_STAFF_API_BASE_URL || "http://localhost:8787").replace(/\/$/, "");
 }
 
-export function getHydrogenRuntime(env = {}) {
+export function getHydrogenRuntime(env = {}, options = {}) {
   const source = readRuntimeEnv(env);
   const shopifyConfig = getRuntimeShopifyConfig(source);
   const shopifyConfigured = isShopifyConfigured(shopifyConfig);
   const isProduction = process.env.NODE_ENV === "production";
+  const requireShopify = options.requireShopify !== false;
 
-  if (!shopifyConfigured) {
+  if (requireShopify && !shopifyConfigured) {
     throw new Error("PUBLIC_STORE_DOMAIN and PUBLIC_STOREFRONT_API_TOKEN are required for the Hydrogen storefront.");
   }
 
@@ -70,10 +73,12 @@ export function getHydrogenRuntime(env = {}) {
     env: {
       ...source,
       SESSION_SECRET: source.SESSION_SECRET || "dev-session-secret",
-      PUBLIC_STORE_DOMAIN: shopifyConfig.storeDomain,
-      PUBLIC_STOREFRONT_API_TOKEN: shopifyConfig.storefrontAccessToken,
+      PUBLIC_STORE_DOMAIN: shopifyConfigured ? shopifyConfig.storeDomain : DIAGNOSTIC_STORE_DOMAIN,
+      PUBLIC_STOREFRONT_API_TOKEN: shopifyConfigured ? shopifyConfig.storefrontAccessToken : DIAGNOSTIC_STOREFRONT_TOKEN,
       PUBLIC_STOREFRONT_ID: source.PUBLIC_STOREFRONT_ID || "",
-      PUBLIC_CHECKOUT_DOMAIN: shopifyConfig.checkoutDomain || shopifyConfig.storeDomain
+      PUBLIC_CHECKOUT_DOMAIN: shopifyConfigured
+        ? shopifyConfig.checkoutDomain || shopifyConfig.storeDomain
+        : DIAGNOSTIC_STORE_DOMAIN
     },
     shopifyConfig,
     shopifyConfigured,

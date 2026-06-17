@@ -3,8 +3,8 @@ import { AppSession } from "./session";
 import { CART_QUERY_FRAGMENT } from "./fragments";
 import { getHydrogenRuntime } from "../../src/lib/shopifyConfig";
 
-export async function createHydrogenRouterContext(request, env = {}, executionContext = {}) {
-  const runtime = getHydrogenRuntime(env);
+export async function createHydrogenRouterContext(request, env = {}, executionContext = {}, options = {}) {
+  const runtime = getHydrogenRuntime(env, options);
   const waitUntil = executionContext.waitUntil?.bind(executionContext) || (() => {});
   const cache = globalThis.caches ? await caches.open("hydrogen") : new InMemoryCache();
   const session = await AppSession.init(request, [runtime.env.SESSION_SECRET]);
