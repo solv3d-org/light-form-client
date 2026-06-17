@@ -2,6 +2,7 @@ import { getSelectedProductOptions } from "@shopify/hydrogen";
 import { getShopifyProductUrl } from "./shopifyConfig";
 
 const PRODUCT_PAGE_SIZE = 100;
+const CATALOG_PRODUCT_LIMIT = 100;
 const FEATURED_COUNT = 12;
 const MONEY_FORMATTER_CACHE = new Map();
 
@@ -290,10 +291,11 @@ export async function loadCatalog(context) {
   let after = null;
   let hasNextPage = true;
 
-  while (hasNextPage) {
+  while (hasNextPage && products.length < CATALOG_PRODUCT_LIMIT) {
+    const first = Math.min(PRODUCT_PAGE_SIZE, CATALOG_PRODUCT_LIMIT - products.length);
     const data = await context.storefront.query(PRODUCTS_QUERY, {
       cache: context.storefront.CacheShort(),
-      variables: { first: PRODUCT_PAGE_SIZE, after }
+      variables: { first, after }
     });
     const connection = data.products;
     products.push(...connection.nodes);
