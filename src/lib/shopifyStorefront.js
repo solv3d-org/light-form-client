@@ -297,6 +297,17 @@ export function normalizeShopifyProduct(product, index = 0, config, variantOverr
 }
 
 function readShopFilters(request) {
+  if (!request) {
+    return {
+      search: "",
+      availability: "all",
+      sort: "newest",
+      query: "",
+      sortKey: "CREATED_AT",
+      reverse: true
+    };
+  }
+
   const url = new URL(request.url);
   const search = (url.searchParams.get("q") || "").trim();
   const availability = url.searchParams.get("availability") || "all";

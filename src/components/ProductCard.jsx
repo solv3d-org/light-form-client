@@ -13,17 +13,23 @@ export default function ProductCard({ product, variant = "default" }) {
   const isMinimal = variant === "minimal";
   const { openCart } = useCartDrawer();
   const canAddToCart = product.checkoutEnabled && product.shopifyVariantId;
+  const isSoldOut = !product.availableForSale;
   const productPath = product.handle ? `/products/${product.handle}` : "";
 
   return (
-    <article className={`product-card${isMinimal ? " product-card-minimal" : ""}`} id={`product-${product.id}`}>
+    <article
+      className={`product-card${isMinimal ? " product-card-minimal" : ""}${isSoldOut ? " is-sold-out" : ""}`}
+      id={`product-${product.id}`}
+    >
       {productPath ? (
         <Link className="product-image-wrap" to={productPath}>
           <ProductImage src={product.image} alt={product.imageAlt || product.title} image={product.imageData} />
+          {isSoldOut && <span className="product-status">Sold out</span>}
         </Link>
       ) : (
         <div className="product-image-wrap">
           <ProductImage src={product.image} alt={product.imageAlt || product.title} image={product.imageData} />
+          {isSoldOut && <span className="product-status">Sold out</span>}
         </div>
       )}
       <div className="product-copy">

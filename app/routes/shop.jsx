@@ -4,8 +4,8 @@ import { loadCatalog } from "../../src/lib/shopifyStorefront";
 
 export const meta = () => [{ title: "Light + Form | Shop" }];
 
-export async function loader({ context }) {
-  return loadCatalog(context);
+export async function loader({ context, request }) {
+  return loadCatalog(context, request);
 }
 
 export default function ShopRoute() {
