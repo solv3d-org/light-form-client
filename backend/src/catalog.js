@@ -484,38 +484,49 @@ export class CsvCatalogProvider {
 }
 
 export class ShopifyCatalogProvider {
-  constructor(config) {
+  constructor(config, store = null) {
     this.config = config;
+    this.store = store;
   }
 
   async searchProducts(input = {}) {
+    if (this.store?.shopifyCatalogCacheCount && (await this.store.shopifyCatalogCacheCount()) > 0) {
+      return this.store.searchShopifyCatalog(input);
+    }
     return (await searchInventory(this.config, input)).map(shopifyVariantToProduct);
   }
 
   async searchInventory(input = {}) {
+    if (this.store?.shopifyCatalogCacheCount && (await this.store.shopifyCatalogCacheCount()) > 0) {
+      return (await this.store.searchShopifyCatalog(input)).map(productToVariant);
+    }
     return searchInventory(this.config, input);
   }
 
   async createProduct(input) {
     const product = await createProduct(this.config, input);
-    return shopifyVariantToProduct({
+    const record = shopifyVariantToProduct({
       id: product?.variants?.nodes?.[0]?.id || product?.id,
       sku: product?.variants?.nodes?.[0]?.sku || input.sku || "",
       price: product?.variants?.nodes?.[0]?.price || input.price || "",
       product,
       inventory: { tracked: true, available: Number(input.onHand || 0), onHand: Number(input.onHand || 0), levels: [] }
     });
+    await this.store?.upsertShopifyCatalog?.([record]);
+    return record;
   }
 
   async updateProduct(id, input) {
     const product = await updateProduct(this.config, id, input);
-    return shopifyVariantToProduct({
+    const record = shopifyVariantToProduct({
       id: product?.variants?.nodes?.[0]?.id || input.variantId || id,
       sku: product?.variants?.nodes?.[0]?.sku || input.sku || "",
       price: product?.variants?.nodes?.[0]?.price || input.price || "",
       product,
       inventory: { tracked: true, available: Number(input.onHand || 0), onHand: Number(input.onHand || 0), levels: [] }
     });
+    await this.store?.upsertShopifyCatalog?.([record]);
+    return record;
   }
 
   async archiveProduct(id) {
@@ -547,6 +558,6 @@ export class ShopifyCatalogProvider {
   }
 }
 
-export function createCatalogProvider(config) {
-  return config.catalog?.source === "shopify" ? new ShopifyCatalogProvider(config) : new CsvCatalogProvider(config);
+export function createCatalogProvider(config, store = null) {
+  return config.catalog?.source === "shopify" ? new ShopifyCatalogProvider(config, store) : new CsvCatalogProvider(config);
 }

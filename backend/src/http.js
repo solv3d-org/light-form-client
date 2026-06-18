@@ -10,16 +10,7 @@ export class HttpError extends Error {
 export async function readJson(req) {
   if (req.method === "GET" || req.method === "HEAD") return {};
 
-  const chunks = [];
-  let size = 0;
-
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > 1_000_000) throw new HttpError(413, "Request body too large.");
-    chunks.push(chunk);
-  }
-
-  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  const raw = (await readRawBody(req)).toString("utf8").trim();
   if (!raw) return {};
 
   try {
@@ -27,6 +18,19 @@ export async function readJson(req) {
   } catch {
     throw new HttpError(400, "Request body must be valid JSON.");
   }
+}
+
+export async function readRawBody(req, limit = 1_000_000) {
+  const chunks = [];
+  let size = 0;
+
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new HttpError(413, "Request body too large.");
+    chunks.push(chunk);
+  }
+
+  return Buffer.concat(chunks);
 }
 
 export function sendJson(res, status, payload = null, headers = {}) {

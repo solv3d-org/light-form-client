@@ -12,7 +12,8 @@ export const PERMISSIONS = Object.freeze([
   { key: "discount:apply", label: "Apply discounts" },
   { key: "cost:write", label: "Write cost fields" },
   { key: "user:manage", label: "Manage staff" },
-  { key: "audit:read", label: "Read audit log" }
+  { key: "audit:read", label: "Read audit log" },
+  { key: "sync:manage", label: "Manage Shopify sync" }
 ]);
 
 const PERMISSION_KEYS = new Set(PERMISSIONS.map((permission) => permission.key));

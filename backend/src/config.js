@@ -85,7 +85,9 @@ export function getConfig(cwd = process.cwd()) {
       adminAccessToken: process.env.SHOPIFY_ADMIN_ACCESS_TOKEN || "",
       clientId: process.env.SHOPIFY_CLIENT_ID || "",
       clientSecret: process.env.SHOPIFY_CLIENT_SECRET || "",
-      apiVersion: process.env.SHOPIFY_API_VERSION || DEFAULT_SHOPIFY_API_VERSION
+      apiVersion: process.env.SHOPIFY_API_VERSION || DEFAULT_SHOPIFY_API_VERSION,
+      webhookSecret: process.env.SHOPIFY_WEBHOOK_SECRET || "",
+      webhookPublicBaseUrl: String(process.env.WEBHOOK_PUBLIC_BASE_URL || "").replace(/\/+$/, "")
     },
     auth: {
       jwtSecret: process.env.STAFF_JWT_SECRET || "",

@@ -137,6 +137,101 @@ function normalizeDbAudit(row) {
   };
 }
 
+function normalizeDbWebhookEvent(row) {
+  if (!row) return null;
+  return {
+    webhookId: row.webhook_id,
+    eventId: row.event_id || "",
+    topic: row.topic,
+    shopDomain: row.shop_domain || "",
+    apiVersion: row.api_version || "",
+    status: row.status,
+    error: row.error || "",
+    payload: row.payload || {},
+    receivedAt: toIso(row.received_at),
+    processedAt: toIso(row.processed_at)
+  };
+}
+
+function normalizeDbCatalogRow(row) {
+  if (!row) return null;
+  return {
+    id: row.product_id || row.variant_id,
+    source: "shopify-cache",
+    handle: row.handle || "",
+    title: row.title || "",
+    bodyHtml: "",
+    vendor: row.vendor || "",
+    productType: row.product_type || "",
+    tags: "",
+    status: row.status || "ACTIVE",
+    sku: row.sku || "",
+    price: row.price || "",
+    compareAtPrice: row.compare_at_price || "",
+    barcode: row.barcode || "",
+    imageUrl: row.image_url || "",
+    imageAlt: row.image_alt || "",
+    inventory: row.inventory || { tracked: false, available: 0, onHand: 0, levels: [] },
+    shopifyProductId: row.product_id || "",
+    shopifyVariantId: row.variant_id || "",
+    inventoryItemId: row.inventory_item_id || "",
+    product: row.product || {},
+    updatedAt: toIso(row.updated_at)
+  };
+}
+
+function catalogRecordFromVariant(variant) {
+  if (variant.shopifyVariantId) {
+    return {
+      variantId: variant.shopifyVariantId,
+      productId: variant.shopifyProductId || variant.id || "",
+      inventoryItemId: variant.inventoryItemId || "",
+      handle: variant.handle || "",
+      title: variant.title || "",
+      vendor: variant.vendor || "",
+      productType: variant.productType || "",
+      status: variant.status || "ACTIVE",
+      sku: variant.sku || "",
+      barcode: variant.barcode || "",
+      price: variant.price || "",
+      compareAtPrice: variant.compareAtPrice || "",
+      imageUrl: variant.imageUrl || "",
+      imageAlt: variant.imageAlt || variant.title || "",
+      inventory: variant.inventory || { tracked: false, available: 0, onHand: 0, levels: [] },
+      product: variant.product || {},
+      updatedAt: nowIso()
+    };
+  }
+  const product = variant.product || {};
+  const image = variant.image || product.featuredImage || product.image || {};
+  const quantities = variant.inventory?.quantities || [];
+  const inventory = variant.inventory || {
+    tracked: Boolean(variant.inventoryItem?.tracked),
+    available: quantities.find((item) => item.name === "available")?.quantity || 0,
+    onHand: quantities.find((item) => item.name === "on_hand")?.quantity || 0,
+    levels: variant.inventoryItem?.inventoryLevels?.nodes || []
+  };
+  return {
+    variantId: variant.id || variant.variantId || "",
+    productId: product.id || variant.productId || "",
+    inventoryItemId: variant.inventoryItemId || variant.inventoryItem?.id || "",
+    handle: product.handle || "",
+    title: product.title || variant.title || "",
+    vendor: product.vendor || "",
+    productType: product.productType || "",
+    status: product.status || "ACTIVE",
+    sku: variant.sku || variant.inventoryItem?.sku || "",
+    barcode: variant.barcode || "",
+    price: variant.price || "",
+    compareAtPrice: variant.compareAtPrice || "",
+    imageUrl: image.url || "",
+    imageAlt: image.altText || product.title || "",
+    inventory,
+    product,
+    updatedAt: nowIso()
+  };
+}
+
 function orderParams(order) {
   return [
     order.id,
@@ -158,6 +253,28 @@ function orderParams(order) {
   ];
 }
 
+function catalogParams(record) {
+  return [
+    record.variantId,
+    record.productId,
+    record.inventoryItemId,
+    record.handle,
+    record.title,
+    record.vendor,
+    record.productType,
+    record.status,
+    record.sku,
+    record.barcode,
+    record.price,
+    record.compareAtPrice,
+    record.imageUrl,
+    record.imageAlt,
+    JSON.stringify(record.inventory || {}),
+    JSON.stringify(record.product || {}),
+    record.updatedAt || nowIso()
+  ];
+}
+
 class JsonStaffStore {
   constructor(dataDir) {
     this.kind = "json";
@@ -165,11 +282,13 @@ class JsonStaffStore {
     this.usersPath = path.join(dataDir, "staff-users.json");
     this.ordersPath = path.join(dataDir, "staff-orders.json");
     this.auditPath = path.join(dataDir, "staff-audit-log.jsonl");
+    this.webhooksPath = path.join(dataDir, "shopify-webhook-events.jsonl");
+    this.catalogCachePath = path.join(dataDir, "shopify-catalog-cache.json");
     mkdirSync(dataDir, { recursive: true });
   }
 
   storage() {
-    return { users: "json", orders: "json", audit: "jsonl" };
+    return { users: "json", orders: "json", audit: "jsonl", shopifyCatalogCache: "json", webhooks: "jsonl" };
   }
 
   async listUsers() {
@@ -328,6 +447,83 @@ class JsonStaffStore {
       })}\n`
     );
   }
+
+  async recordWebhookEvent(event) {
+    const existing = readJsonLines(this.webhooksPath, 100000).find((entry) => entry.webhookId === event.webhookId);
+    if (existing) return { duplicate: true, event: existing };
+    const record = {
+      webhookId: event.webhookId,
+      eventId: event.eventId || "",
+      topic: event.topic,
+      shopDomain: event.shopDomain || "",
+      apiVersion: event.apiVersion || "",
+      status: "received",
+      error: "",
+      payload: event.payload || {},
+      receivedAt: nowIso(),
+      processedAt: null
+    };
+    appendFileSync(this.webhooksPath, `${JSON.stringify(record)}\n`);
+    return { duplicate: false, event: record };
+  }
+
+  async updateWebhookEvent(webhookId, patch) {
+    const entries = readJsonLines(this.webhooksPath, 100000).reverse();
+    const index = entries.findIndex((entry) => entry.webhookId === webhookId);
+    if (index === -1) return null;
+    entries[index] = { ...entries[index], ...patch };
+    writeFileSync(this.webhooksPath, `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`);
+    return entries[index];
+  }
+
+  async upsertShopifyCatalog(records = []) {
+    const current = readJsonFile(this.catalogCachePath, []);
+    const byVariant = new Map(current.map((record) => [record.shopifyVariantId || record.variantId, record]));
+    for (const input of records) {
+      const record = input.variantId ? input : catalogRecordFromVariant(input);
+      if (!record.variantId) continue;
+      byVariant.set(record.variantId, normalizeDbCatalogRow({
+        variant_id: record.variantId,
+        product_id: record.productId,
+        inventory_item_id: record.inventoryItemId,
+        handle: record.handle,
+        title: record.title,
+        vendor: record.vendor,
+        product_type: record.productType,
+        status: record.status,
+        sku: record.sku,
+        barcode: record.barcode,
+        price: record.price,
+        compare_at_price: record.compareAtPrice,
+        image_url: record.imageUrl,
+        image_alt: record.imageAlt,
+        inventory: record.inventory,
+        product: record.product,
+        updated_at: record.updatedAt || nowIso()
+      }));
+    }
+    const next = [...byVariant.values()];
+    writeJsonFile(this.catalogCachePath, next);
+    return next.length;
+  }
+
+  async searchShopifyCatalog({ query = "", first = 25 } = {}) {
+    const limit = Math.max(1, Math.min(Number(first) || 25, 100));
+    const needle = String(query || "").toLowerCase();
+    return readJsonFile(this.catalogCachePath, [])
+      .filter((record) => {
+        if (!needle) return true;
+        return [record.title, record.handle, record.sku, record.vendor, record.productType, record.barcode]
+          .join(" ")
+          .toLowerCase()
+          .includes(needle);
+      })
+      .slice(0, limit);
+  }
+
+  async shopifyCatalogCacheCount() {
+    return readJsonFile(this.catalogCachePath, []).length;
+  }
 }
 
 class PgStaffStore {
@@ -347,7 +543,7 @@ class PgStaffStore {
   }
 
   storage() {
-    return { users: "postgres", orders: "postgres", audit: "postgres" };
+    return { users: "postgres", orders: "postgres", audit: "postgres", shopifyCatalogCache: "postgres", webhooks: "postgres" };
   }
 
   async migrate() {
@@ -396,6 +592,48 @@ class PgStaffStore {
 
       CREATE INDEX IF NOT EXISTS staff_audit_created_at_idx ON staff_audit_entries(created_at DESC);
       CREATE INDEX IF NOT EXISTS staff_audit_action_idx ON staff_audit_entries(action);
+
+      CREATE TABLE IF NOT EXISTS shopify_webhook_events (
+        webhook_id text PRIMARY KEY,
+        event_id text NOT NULL DEFAULT '',
+        topic text NOT NULL,
+        shop_domain text NOT NULL DEFAULT '',
+        api_version text NOT NULL DEFAULT '',
+        status text NOT NULL,
+        error text NOT NULL DEFAULT '',
+        payload jsonb NOT NULL DEFAULT '{}'::jsonb,
+        received_at timestamptz NOT NULL,
+        processed_at timestamptz
+      );
+
+      CREATE INDEX IF NOT EXISTS shopify_webhook_events_topic_idx ON shopify_webhook_events(topic);
+      CREATE INDEX IF NOT EXISTS shopify_webhook_events_received_at_idx ON shopify_webhook_events(received_at DESC);
+
+      CREATE TABLE IF NOT EXISTS shopify_catalog_cache (
+        variant_id text PRIMARY KEY,
+        product_id text NOT NULL DEFAULT '',
+        inventory_item_id text NOT NULL DEFAULT '',
+        handle text NOT NULL DEFAULT '',
+        title text NOT NULL DEFAULT '',
+        vendor text NOT NULL DEFAULT '',
+        product_type text NOT NULL DEFAULT '',
+        status text NOT NULL DEFAULT '',
+        sku text NOT NULL DEFAULT '',
+        barcode text NOT NULL DEFAULT '',
+        price text NOT NULL DEFAULT '',
+        compare_at_price text NOT NULL DEFAULT '',
+        image_url text NOT NULL DEFAULT '',
+        image_alt text NOT NULL DEFAULT '',
+        inventory jsonb NOT NULL DEFAULT '{}'::jsonb,
+        product jsonb NOT NULL DEFAULT '{}'::jsonb,
+        updated_at timestamptz NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS shopify_catalog_cache_product_idx ON shopify_catalog_cache(product_id);
+      CREATE INDEX IF NOT EXISTS shopify_catalog_cache_inventory_item_idx ON shopify_catalog_cache(inventory_item_id);
+      CREATE INDEX IF NOT EXISTS shopify_catalog_cache_search_idx ON shopify_catalog_cache USING gin (
+        to_tsvector('simple', title || ' ' || handle || ' ' || sku || ' ' || vendor || ' ' || product_type || ' ' || barcode)
+      );
     `);
   }
 
@@ -595,6 +833,109 @@ class PgStaffStore {
        VALUES ($1,$2,$3,$4,$5)`,
       [crypto.randomUUID(), action, JSON.stringify(publicUser(actor)), JSON.stringify(details || {}), nowIso()]
     );
+  }
+
+  async recordWebhookEvent(event) {
+    const record = {
+      webhookId: event.webhookId,
+      eventId: event.eventId || "",
+      topic: event.topic,
+      shopDomain: event.shopDomain || "",
+      apiVersion: event.apiVersion || "",
+      status: "received",
+      error: "",
+      payload: event.payload || {},
+      receivedAt: nowIso(),
+      processedAt: null
+    };
+    const result = await this.pool.query(
+      `INSERT INTO shopify_webhook_events (
+        webhook_id, event_id, topic, shop_domain, api_version, status, error, payload, received_at, processed_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ON CONFLICT (webhook_id) DO NOTHING
+      RETURNING *`,
+      [
+        record.webhookId,
+        record.eventId,
+        record.topic,
+        record.shopDomain,
+        record.apiVersion,
+        record.status,
+        record.error,
+        JSON.stringify(record.payload),
+        record.receivedAt,
+        record.processedAt
+      ]
+    );
+    if (result.rows[0]) return { duplicate: false, event: normalizeDbWebhookEvent(result.rows[0]) };
+    const existing = await this.pool.query("SELECT * FROM shopify_webhook_events WHERE webhook_id = $1", [record.webhookId]);
+    return { duplicate: true, event: normalizeDbWebhookEvent(existing.rows[0]) };
+  }
+
+  async updateWebhookEvent(webhookId, patch) {
+    const result = await this.pool.query(
+      `UPDATE shopify_webhook_events
+       SET status = COALESCE($2, status), error = COALESCE($3, error), processed_at = COALESCE($4, processed_at)
+       WHERE webhook_id = $1
+       RETURNING *`,
+      [webhookId, patch.status || null, patch.error || null, patch.processedAt || null]
+    );
+    return normalizeDbWebhookEvent(result.rows[0]);
+  }
+
+  async upsertShopifyCatalog(records = []) {
+    let count = 0;
+    for (const input of records) {
+      const record = input.variantId ? input : catalogRecordFromVariant(input);
+      if (!record.variantId) continue;
+      await this.pool.query(
+        `INSERT INTO shopify_catalog_cache (
+          variant_id, product_id, inventory_item_id, handle, title, vendor, product_type, status,
+          sku, barcode, price, compare_at_price, image_url, image_alt, inventory, product, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        ON CONFLICT (variant_id) DO UPDATE SET
+          product_id = EXCLUDED.product_id,
+          inventory_item_id = EXCLUDED.inventory_item_id,
+          handle = EXCLUDED.handle,
+          title = EXCLUDED.title,
+          vendor = EXCLUDED.vendor,
+          product_type = EXCLUDED.product_type,
+          status = EXCLUDED.status,
+          sku = EXCLUDED.sku,
+          barcode = EXCLUDED.barcode,
+          price = EXCLUDED.price,
+          compare_at_price = EXCLUDED.compare_at_price,
+          image_url = EXCLUDED.image_url,
+          image_alt = EXCLUDED.image_alt,
+          inventory = EXCLUDED.inventory,
+          product = EXCLUDED.product,
+          updated_at = EXCLUDED.updated_at`,
+        catalogParams(record)
+      );
+      count += 1;
+    }
+    return count;
+  }
+
+  async searchShopifyCatalog({ query = "", first = 25 } = {}) {
+    const limit = Math.max(1, Math.min(Number(first) || 25, 100));
+    const needle = String(query || "").trim();
+    const result = needle
+      ? await this.pool.query(
+          `SELECT * FROM shopify_catalog_cache
+           WHERE to_tsvector('simple', title || ' ' || handle || ' ' || sku || ' ' || vendor || ' ' || product_type || ' ' || barcode)
+             @@ plainto_tsquery('simple', $1)
+           ORDER BY title ASC
+           LIMIT $2`,
+          [needle, limit]
+        )
+      : await this.pool.query("SELECT * FROM shopify_catalog_cache ORDER BY title ASC LIMIT $1", [limit]);
+    return result.rows.map(normalizeDbCatalogRow);
+  }
+
+  async shopifyCatalogCacheCount() {
+    const result = await this.pool.query("SELECT count(*)::int AS count FROM shopify_catalog_cache");
+    return result.rows[0]?.count || 0;
   }
 }
 

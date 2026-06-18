@@ -1,10 +1,5 @@
+import { Pagination } from "@shopify/hydrogen";
 import ProductCard from "../components/ProductCard";
-
-const availabilityOptions = [
-  ["all", "All"],
-  ["available", "In stock"],
-  ["sold-out", "Sold out"]
-];
 
 const sortOptions = [
   ["newest", "Newest"],
@@ -14,8 +9,67 @@ const sortOptions = [
   ["best-selling", "Best selling"]
 ];
 
-export default function ShopPage({ products, catalogMetadata }) {
+function isSelected(filters, input) {
+  return (filters.selectedFilterInputs || []).includes(input);
+}
+
+function filterLabel(value) {
+  return `${value.label}${value.count != null ? ` (${value.count})` : ""}`;
+}
+
+function FacetControls({ availableFilters, filters }) {
+  return (
+    <div className="shop-facets">
+      {availableFilters.map((filter) => {
+        if (filter.type === "PRICE_RANGE") {
+          return (
+            <fieldset className="shop-facet" key={filter.id}>
+              <legend>{filter.label}</legend>
+              <div className="shop-price-range">
+                <label>
+                  <span>Min</span>
+                  <input name="price_min" type="number" min="0" step="0.01" defaultValue={filters.priceMin || ""} />
+                </label>
+                <label>
+                  <span>Max</span>
+                  <input name="price_max" type="number" min="0" step="0.01" defaultValue={filters.priceMax || ""} />
+                </label>
+              </div>
+            </fieldset>
+          );
+        }
+
+        return (
+          <fieldset className="shop-facet" key={filter.id}>
+            <legend>{filter.label}</legend>
+            <div className="shop-facet-options">
+              {filter.values.map((value) => (
+                <label key={value.id}>
+                  <input name="filter" type="checkbox" value={value.input} defaultChecked={isSelected(filters, value.input)} />
+                  <span>{filterLabel(value)}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        );
+      })}
+    </div>
+  );
+}
+
+function PaginationControls({ PreviousLink, NextLink, hasPreviousPage, hasNextPage }) {
+  if (!hasPreviousPage && !hasNextPage) return null;
+  return (
+    <nav className="shop-pagination" aria-label="Product pagination">
+      {hasPreviousPage ? <PreviousLink>Previous</PreviousLink> : <span aria-disabled="true">Previous</span>}
+      {hasNextPage ? <NextLink>Next</NextLink> : <span aria-disabled="true">Next</span>}
+    </nav>
+  );
+}
+
+export default function ShopPage({ products, productConnection, availableFilters = [], catalogMetadata }) {
   const filters = catalogMetadata?.filters || {};
+  const connection = productConnection || { nodes: products, pageInfo: {} };
 
   return (
     <main>
@@ -31,20 +85,6 @@ export default function ShopPage({ products, catalogMetadata }) {
         <div className="site-shell">
           <form className="shop-filter-bar" method="get">
             <label>
-              <span>Search</span>
-              <input name="q" type="search" defaultValue={filters.search || ""} placeholder="SKU, title, vendor" />
-            </label>
-            <label>
-              <span>Availability</span>
-              <select name="availability" defaultValue={filters.availability || "all"}>
-                {availabilityOptions.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
               <span>Sort</span>
               <select name="sort" defaultValue={filters.sort || "newest"}>
                 {sortOptions.map(([value, label]) => (
@@ -54,17 +94,36 @@ export default function ShopPage({ products, catalogMetadata }) {
                 ))}
               </select>
             </label>
+            <FacetControls availableFilters={availableFilters} filters={filters} />
             <div className="shop-filter-actions">
               <button type="submit">Apply</button>
               <a href="/shop">Reset</a>
             </div>
           </form>
-          <div className="product-grid">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} variant="minimal" />
-            ))}
-          </div>
-          {!products.length && <p className="shop-empty">No products match these filters.</p>}
+          <Pagination connection={connection}>
+            {({ nodes, PreviousLink, NextLink, hasPreviousPage, hasNextPage }) => (
+              <>
+                <PaginationControls
+                  PreviousLink={PreviousLink}
+                  NextLink={NextLink}
+                  hasPreviousPage={hasPreviousPage}
+                  hasNextPage={hasNextPage}
+                />
+                <div className="product-grid">
+                  {nodes.map((product) => (
+                    <ProductCard key={product.id} product={product} variant="minimal" />
+                  ))}
+                </div>
+                {!nodes.length && <p className="shop-empty">No products match these filters.</p>}
+                <PaginationControls
+                  PreviousLink={PreviousLink}
+                  NextLink={NextLink}
+                  hasPreviousPage={hasPreviousPage}
+                  hasNextPage={hasNextPage}
+                />
+              </>
+            )}
+          </Pagination>
         </div>
       </section>
     </main>
