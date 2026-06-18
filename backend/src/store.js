@@ -524,6 +524,39 @@ class JsonStaffStore {
   async shopifyCatalogCacheCount() {
     return readJsonFile(this.catalogCachePath, []).length;
   }
+
+  async deleteShopifyCatalogProduct(productId) {
+    const gid = String(productId || "");
+    const numeric = gid.match(/(\d+)$/)?.[1] || gid;
+    const current = readJsonFile(this.catalogCachePath, []);
+    const next = current.filter((record) => {
+      const recordId = record.shopifyProductId || record.productId || "";
+      return recordId !== gid && !recordId.endsWith(`/${numeric}`) && recordId !== numeric;
+    });
+    writeJsonFile(this.catalogCachePath, next);
+    return current.length - next.length;
+  }
+
+  async updateShopifyInventoryItem(inventoryItemId, patch = {}) {
+    const gid = String(inventoryItemId || "");
+    const numeric = gid.match(/(\d+)$/)?.[1] || gid;
+    const records = readJsonFile(this.catalogCachePath, []);
+    let count = 0;
+    for (const record of records) {
+      const recordId = record.inventoryItemId || "";
+      if (recordId !== gid && !recordId.endsWith(`/${numeric}`) && recordId !== numeric) continue;
+      record.inventory = {
+        ...(record.inventory || {}),
+        available: patch.available ?? record.inventory?.available ?? 0,
+        onHand: patch.onHand ?? patch.available ?? record.inventory?.onHand ?? 0,
+        levels: patch.levels || record.inventory?.levels || []
+      };
+      record.updatedAt = nowIso();
+      count += 1;
+    }
+    writeJsonFile(this.catalogCachePath, records);
+    return count;
+  }
 }
 
 class PgStaffStore {
@@ -936,6 +969,46 @@ class PgStaffStore {
   async shopifyCatalogCacheCount() {
     const result = await this.pool.query("SELECT count(*)::int AS count FROM shopify_catalog_cache");
     return result.rows[0]?.count || 0;
+  }
+
+  async deleteShopifyCatalogProduct(productId) {
+    const gid = String(productId || "");
+    const numeric = gid.match(/(\d+)$/)?.[1] || gid;
+    const result = await this.pool.query(
+      "DELETE FROM shopify_catalog_cache WHERE product_id = $1 OR product_id = $2 OR product_id LIKE $3",
+      [gid, numeric, `%/${numeric}`]
+    );
+    return result.rowCount || 0;
+  }
+
+  async updateShopifyInventoryItem(inventoryItemId, patch = {}) {
+    const gid = String(inventoryItemId || "");
+    const numeric = gid.match(/(\d+)$/)?.[1] || gid;
+    const result = await this.pool.query(
+      `UPDATE shopify_catalog_cache
+       SET inventory = jsonb_set(
+             jsonb_set(
+               COALESCE(inventory, '{}'::jsonb),
+               '{available}',
+               to_jsonb($4::int),
+               true
+             ),
+             '{onHand}',
+             to_jsonb($5::int),
+             true
+           ),
+           updated_at = $6
+       WHERE inventory_item_id = $1 OR inventory_item_id = $2 OR inventory_item_id LIKE $3`,
+      [
+        gid,
+        numeric,
+        `%/${numeric}`,
+        Number(patch.available ?? patch.onHand ?? 0),
+        Number(patch.onHand ?? patch.available ?? 0),
+        nowIso()
+      ]
+    );
+    return result.rowCount || 0;
   }
 }
 

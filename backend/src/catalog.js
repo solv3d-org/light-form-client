@@ -239,7 +239,7 @@ function shopifyVariantToProduct(variant) {
     status: variant.product?.status || "ACTIVE",
     sku: variant.sku || "",
     price: variant.price || "",
-    compareAtPrice: "",
+    compareAtPrice: variant.compareAtPrice || "",
     barcode: variant.barcode || "",
     imageUrl: "",
     imageAlt: "",

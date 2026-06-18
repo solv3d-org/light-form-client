@@ -16,6 +16,7 @@ const PRODUCT_VARIANTS_QUERY = `
         title
         sku
         price
+        compareAtPrice
         barcode
         product {
           id
@@ -150,6 +151,159 @@ const INVENTORY_SET_QUANTITIES_MUTATION = `
   }
 `;
 
+const SHOPIFY_CATALOG_BULK_QUERY = `
+{
+  productVariants {
+    edges {
+      node {
+        id
+        title
+        sku
+        price
+        compareAtPrice
+        barcode
+        product {
+          id
+          handle
+          title
+          vendor
+          productType
+          status
+        }
+        inventoryItem {
+          id
+          sku
+          tracked
+          inventoryLevels(first: 10) {
+            edges {
+              node {
+                id
+                location {
+                  id
+                  name
+                }
+                quantities(names: ["available", "on_hand"]) {
+                  name
+                  quantity
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+const BULK_OPERATION_RUN_QUERY_MUTATION = `
+  mutation BulkOperationRunQuery($query: String!, $groupObjects: Boolean!) {
+    bulkOperationRunQuery(query: $query, groupObjects: $groupObjects) {
+      bulkOperation {
+        id
+        status
+        type
+        objectCount
+        url
+        partialDataUrl
+        createdAt
+        completedAt
+        errorCode
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const CURRENT_BULK_OPERATION_QUERY = `
+  query CurrentBulkOperation {
+    currentBulkOperation(type: QUERY) {
+      id
+      status
+      type
+      objectCount
+      url
+      partialDataUrl
+      createdAt
+      completedAt
+      errorCode
+    }
+  }
+`;
+
+const WEBHOOK_SUBSCRIPTION_CREATE_MUTATION = `
+  mutation WebhookSubscriptionCreate($topic: WebhookSubscriptionTopic!, $subscription: WebhookSubscriptionInput!) {
+    webhookSubscriptionCreate(topic: $topic, webhookSubscription: $subscription) {
+      webhookSubscription {
+        id
+        topic
+        endpoint {
+          __typename
+          ... on WebhookHttpEndpoint {
+            callbackUrl
+          }
+        }
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const PRODUCT_BY_ID_QUERY = `
+  query ProductById($id: ID!) {
+    product(id: $id) {
+      id
+      handle
+      title
+      vendor
+      productType
+      status
+      variants(first: 100) {
+        nodes {
+          id
+          title
+          sku
+          price
+          compareAtPrice
+          barcode
+          product {
+            id
+            handle
+            title
+            vendor
+            productType
+            status
+          }
+          inventoryItem {
+            id
+            sku
+            tracked
+            inventoryLevels(first: 10) {
+              nodes {
+                id
+                location {
+                  id
+                  name
+                }
+                quantities(names: ["available", "on_hand"]) {
+                  name
+                  quantity
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 function assertShopifyConfig(config) {
   if (!isShopifyAdminConfigured(config)) throw new HttpError(500, "Shopify Admin API is not configured.");
 }
@@ -213,6 +367,14 @@ function numericShopifyId(id, label) {
   return Number(match[1]);
 }
 
+function shopifyGid(type, id) {
+  const value = String(id || "");
+  if (value.startsWith("gid://shopify/")) return value;
+  const match = value.match(/(\d+)$/);
+  if (!match) throw new HttpError(400, `${type} id must be a Shopify numeric ID or gid.`);
+  return `gid://shopify/${type}/${match[1]}`;
+}
+
 function normalizeDiscount(input) {
   if (!input) return undefined;
   const valueType = input.valueType || input.value_type;
@@ -263,6 +425,41 @@ function normalizeFulfillment(input) {
 function assertUserErrors(container, label) {
   const userErrors = container?.userErrors || [];
   if (userErrors.length) throw new HttpError(400, label, userErrors);
+}
+
+function variantToCatalogRecord(variant) {
+  const levels = variant.inventoryItem?.inventoryLevels?.nodes || variant.inventoryItem?.inventoryLevels?.edges?.map((edge) => edge.node) || [];
+  const quantities = levels.flatMap((level) => level.quantities || []);
+  const available = quantities
+    .filter((quantity) => quantity.name === "available")
+    .reduce((sum, quantity) => sum + Number(quantity.quantity || 0), 0);
+  const onHand = quantities
+    .filter((quantity) => quantity.name === "on_hand")
+    .reduce((sum, quantity) => sum + Number(quantity.quantity || 0), 0);
+  return {
+    variantId: variant.id,
+    productId: variant.product?.id || "",
+    inventoryItemId: variant.inventoryItem?.id || "",
+    handle: variant.product?.handle || "",
+    title: variant.product?.title || variant.title || "",
+    vendor: variant.product?.vendor || "",
+    productType: variant.product?.productType || "",
+    status: variant.product?.status || "ACTIVE",
+    sku: variant.sku || variant.inventoryItem?.sku || "",
+    barcode: variant.barcode || "",
+    price: variant.price || "",
+    compareAtPrice: variant.compareAtPrice || "",
+    imageUrl: "",
+    imageAlt: "",
+    inventory: {
+      tracked: Boolean(variant.inventoryItem?.tracked),
+      available,
+      onHand,
+      levels
+    },
+    product: variant.product || {},
+    updatedAt: new Date().toISOString()
+  };
 }
 
 function normalizeProductStatus(status) {
@@ -413,6 +610,86 @@ export async function shopifyAdminGraphql(config, query, variables = {}) {
   if (!response.ok) throw new HttpError(response.status, "Shopify Admin GraphQL request failed.", payload);
   if (payload?.errors?.length) throw new HttpError(502, "Shopify Admin GraphQL returned errors.", payload.errors);
   return payload.data;
+}
+
+export async function fetchProductCatalogRecords(config, productId) {
+  const data = await shopifyAdminGraphql(config, PRODUCT_BY_ID_QUERY, {
+    id: shopifyGid("Product", productId)
+  });
+  const product = data.product;
+  if (!product) return [];
+  return (product.variants?.nodes || []).map((variant) => variantToCatalogRecord({
+    ...variant,
+    product: variant.product || product
+  }));
+}
+
+export async function startCatalogBulkOperation(config) {
+  const data = await shopifyAdminGraphql(config, BULK_OPERATION_RUN_QUERY_MUTATION, {
+    query: SHOPIFY_CATALOG_BULK_QUERY,
+    groupObjects: false
+  });
+  assertUserErrors(data.bulkOperationRunQuery, "Shopify bulk operation start failed.");
+  return data.bulkOperationRunQuery.bulkOperation;
+}
+
+export async function getCatalogBulkOperation(config) {
+  const data = await shopifyAdminGraphql(config, CURRENT_BULK_OPERATION_QUERY);
+  return data.currentBulkOperation;
+}
+
+export async function downloadBulkJsonl(url) {
+  if (!url) throw new HttpError(400, "Bulk operation URL is not available.");
+  const response = await fetch(url);
+  if (!response.ok) throw new HttpError(response.status, "Shopify bulk result download failed.");
+  return response.text();
+}
+
+export function parseCatalogBulkJsonl(text) {
+  const variants = new Map();
+  const inventoryItemToVariant = new Map();
+  const levelsByInventoryItem = new Map();
+
+  for (const line of String(text || "").split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const item = JSON.parse(line);
+    if (String(item.id || "").includes("/ProductVariant/")) {
+      variants.set(item.id, item);
+      if (item.inventoryItem?.id) inventoryItemToVariant.set(item.inventoryItem.id, item.id);
+      continue;
+    }
+    if (String(item.id || "").includes("/InventoryLevel/") && item.__parentId) {
+      const levels = levelsByInventoryItem.get(item.__parentId) || [];
+      levels.push(item);
+      levelsByInventoryItem.set(item.__parentId, levels);
+    }
+  }
+
+  for (const [inventoryItemId, levels] of levelsByInventoryItem.entries()) {
+    const variantId = inventoryItemToVariant.get(inventoryItemId);
+    const variant = variants.get(variantId);
+    if (variant?.inventoryItem) {
+      variant.inventoryItem.inventoryLevels = { nodes: levels };
+    }
+  }
+
+  return [...variants.values()].map(variantToCatalogRecord);
+}
+
+export async function registerWebhookSubscriptions(config, topics, callbackUrl) {
+  const results = [];
+  for (const topic of topics) {
+    const data = await shopifyAdminGraphql(config, WEBHOOK_SUBSCRIPTION_CREATE_MUTATION, {
+      topic,
+      subscription: {
+        callbackUrl,
+        format: "JSON"
+      }
+    });
+    assertUserErrors(data.webhookSubscriptionCreate, `Shopify webhook registration failed for ${topic}.`);
+    results.push(data.webhookSubscriptionCreate.webhookSubscription);
+  }
+  return results;
 }
 
 export async function searchInventory(config, { query = "", first = 25 } = {}) {

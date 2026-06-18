@@ -197,6 +197,11 @@ export default function HealthRoute() {
             <HealthRow label="Users store" value={backendPayload.storage?.users} />
             <HealthRow label="Orders store" value={backendPayload.storage?.orders} />
             <HealthRow label="Audit store" value={backendPayload.storage?.audit} />
+            <HealthRow label="Cache store" value={backendPayload.storage?.shopifyCatalogCache} />
+            <HealthRow label="Webhook store" value={backendPayload.storage?.webhooks} />
+            <HealthRow label="Webhook configured" value={backendPayload.webhooks?.configured} />
+            <HealthRow label="Cache rows" value={backendPayload.sync?.shopifyCatalogCacheRows} />
+            <HealthRow label="Bulk status" value={backendPayload.sync?.bulkOperation?.status || backendPayload.sync?.bulkOperation?.error} />
             <HealthRow label="Error" value={data.staffBackend.error} />
           </HealthCard>
         </div>

@@ -2,17 +2,24 @@ import { createServer } from "node:http";
 import { URL } from "node:url";
 import { verifyPassword, createSessionToken, verifySessionToken } from "./auth.js";
 import { getConfig, assertRuntimeConfig, isShopifyAdminConfigured } from "./config.js";
-import { HttpError, getBearerToken, getCorsHeaders, readJson, sendError, sendJson } from "./http.js";
+import { HttpError, getBearerToken, getCorsHeaders, readJson, readRawBody, sendError, sendJson } from "./http.js";
 import { getEffectivePermissions, getRolePermissions, hasPermission, normalizePermissionOverrides, PERMISSIONS, ROLES } from "./rbac.js";
 import { StaffStore } from "./store.js";
 import { createCatalogProvider } from "./catalog.js";
-import { summarizeDraftOrder } from "./shopifyAdmin.js";
+import {
+  downloadBulkJsonl,
+  getCatalogBulkOperation,
+  parseCatalogBulkJsonl,
+  startCatalogBulkOperation,
+  summarizeDraftOrder
+} from "./shopifyAdmin.js";
+import { processShopifyWebhook } from "./shopifyWebhooks.js";
 
 const config = getConfig();
 assertRuntimeConfig(config);
 
 const store = await StaffStore.create(config);
-const catalogProvider = createCatalogProvider(config);
+const catalogProvider = createCatalogProvider(config, store);
 const bootstrappedUser = await store.ensureBootstrapAdmin(config);
 
 if (bootstrappedUser) {
@@ -133,6 +140,15 @@ const routes = [
       ...store.storage(),
       catalog: config.catalog.source === "shopify" ? "shopify-admin" : "csv"
     },
+    webhooks: {
+      configured: Boolean(config.shopify.webhookSecret || config.shopify.clientSecret),
+      endpoint: "/webhooks/shopify",
+      publicBaseUrl: config.shopify.webhookPublicBaseUrl
+    },
+    sync: {
+      shopifyCatalogCacheRows: await store.shopifyCatalogCacheCount(),
+      bulkOperation: isShopifyAdminConfigured(config) ? await getCatalogBulkOperation(config).catch((error) => ({ error: error.message })) : null
+    },
     users: (await store.listUsers()).length,
     timestamp: new Date().toISOString()
   })),
@@ -210,6 +226,26 @@ const routes = [
   route("DELETE", "/api/products/:id", { permission: "inventory:adjust" }, async ({ params }) => ({
     product: await catalogProvider.archiveProduct(params.id)
   })),
+
+  route("POST", "/api/sync/shopify/bulk/start", { permission: "sync:manage" }, async () => ({
+    bulkOperation: await startCatalogBulkOperation(config)
+  })),
+
+  route("GET", "/api/sync/shopify/bulk/status", { permission: "sync:manage" }, async () => ({
+    bulkOperation: await getCatalogBulkOperation(config),
+    cacheRows: await store.shopifyCatalogCacheCount()
+  })),
+
+  route("POST", "/api/sync/shopify/bulk/import", { permission: "sync:manage" }, async () => {
+    const bulkOperation = await getCatalogBulkOperation(config);
+    if (!bulkOperation?.url) throw new HttpError(409, "No completed Shopify bulk result URL is available.");
+    const records = parseCatalogBulkJsonl(await downloadBulkJsonl(bulkOperation.url));
+    return {
+      bulkOperation,
+      importedRows: await store.upsertShopifyCatalog(records),
+      parsedRows: records.length
+    };
+  }),
 
   route("GET", "/api/orders", { permission: "order:read" }, async ({ url }) => ({
     orders: await store.listOrders(url.searchParams.get("status") || "")
@@ -302,6 +338,14 @@ async function handleRequest(req, res) {
   let context = { req, url: new URL(req.url || "/", `http://${req.headers.host || "localhost"}`), route: null, user: null };
   try {
     const url = context.url;
+    if (req.method === "POST" && url.pathname === "/webhooks/shopify") {
+      const rawBody = await readRawBody(req, 5_000_000);
+      const payload = await processShopifyWebhook({ config, store, headers: req.headers, rawBody });
+      const elapsedMs = Date.now() - started;
+      logRequest({ req, url, user: null, status: 200, elapsedMs });
+      return sendJson(res, 200, payload);
+    }
+
     const found = routes
       .map((candidate) => ({ route: candidate, params: matchPattern(candidate.pattern, url.pathname) }))
       .find((candidate) => candidate.route.method === req.method && candidate.params);
