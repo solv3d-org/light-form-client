@@ -17,6 +17,10 @@ Set `DATABASE_URL` to use Postgres for IMS-only data: staff users, RBAC override
 
 Before switching to `STAFF_CATALOG_SOURCE=shopify`, set `SHOPIFY_LOCATION_ID=gid://shopify/Location/...` and run `npm run shopify:preflight` from the repo root. The preflight performs read-only schema/location checks and does not create or update Shopify products.
 
+Set `SHOPIFY_WEBHOOK_SECRET` or `SHOPIFY_CLIENT_SECRET` for `/webhooks/shopify` HMAC verification. Set `WEBHOOK_PUBLIC_BASE_URL=https://...` and run `npm run shopify:register-webhooks` to create Shopify webhook subscriptions.
+
+Run `npm run shopify:bulk-sync -- start`, then `status`, then `import` to seed the IMS Shopify catalog cache from Admin bulk operations.
+
 ## Roles
 
 | Role | Access |
@@ -47,6 +51,9 @@ GET /api/products/search?q=sku-or-title
 POST /api/products
 PATCH /api/products/:id
 DELETE /api/products/:id
+POST /api/sync/shopify/bulk/start
+GET /api/sync/shopify/bulk/status
+POST /api/sync/shopify/bulk/import
 POST /api/orders/draft
 GET /api/orders?status=pending
 GET /api/orders?status=completed
@@ -89,3 +96,5 @@ Customer-hidden fields live in local `data/staff-orders.json`, not public fronte
 Uses Admin GraphQL for product search/CRUD and inventory writes. Uses Admin REST DraftOrder endpoints for draft orders, invoices, and completion.
 
 Required Admin scopes: `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_draft_orders`, `write_draft_orders`.
+
+Webhook endpoint: `POST /webhooks/shopify`. It verifies Shopify HMAC before parsing JSON, deduplicates by `X-Shopify-Webhook-Id`, records events, and refreshes IMS cache/order state where applicable.

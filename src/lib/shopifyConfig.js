@@ -76,6 +76,7 @@ export function getHydrogenRuntime(env = {}, options = {}) {
       PUBLIC_STORE_DOMAIN: shopifyConfigured ? shopifyConfig.storeDomain : DIAGNOSTIC_STORE_DOMAIN,
       PUBLIC_STOREFRONT_API_TOKEN: shopifyConfigured ? shopifyConfig.storefrontAccessToken : DIAGNOSTIC_STOREFRONT_TOKEN,
       PUBLIC_STOREFRONT_ID: source.PUBLIC_STOREFRONT_ID || "",
+      PUBLIC_SHOP_COLLECTION_HANDLE: source.PUBLIC_SHOP_COLLECTION_HANDLE || "",
       PUBLIC_CHECKOUT_DOMAIN: shopifyConfigured
         ? shopifyConfig.checkoutDomain || shopifyConfig.storeDomain
         : DIAGNOSTIC_STORE_DOMAIN

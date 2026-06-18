@@ -1,6 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { archiveProduct, createDraftOrder, createProduct, setInventoryOnHand, shopifyAdminRest } from "../src/shopifyAdmin.js";
+import {
+  archiveProduct,
+  createDraftOrder,
+  createProduct,
+  parseCatalogBulkJsonl,
+  setInventoryOnHand,
+  shopifyAdminRest
+} from "../src/shopifyAdmin.js";
 
 const config = {
   shopify: {
@@ -208,4 +215,41 @@ test("Shopify product create fails clearly without a default variant", async () 
 test("Shopify inventory set requires an inventory item and location", async () => {
   await assert.rejects(() => setInventoryOnHand(config, { onHand: 1 }), /inventoryItemId required/);
   await assert.rejects(() => setInventoryOnHand(config, { inventoryItemId: "gid://shopify/InventoryItem/1", onHand: 1 }), /SHOPIFY_LOCATION_ID/);
+});
+
+test("Shopify bulk JSONL parser returns variant cache records", () => {
+  const records = parseCatalogBulkJsonl([
+    JSON.stringify({
+      id: "gid://shopify/ProductVariant/1",
+      title: "Default Title",
+      sku: "SKU-1",
+      price: "25.00",
+      compareAtPrice: null,
+      barcode: "BAR",
+      product: {
+        id: "gid://shopify/Product/2",
+        handle: "lamp",
+        title: "Lamp",
+        vendor: "Vendor",
+        productType: "Lighting",
+        status: "ACTIVE"
+      },
+      inventoryItem: {
+        id: "gid://shopify/InventoryItem/3",
+        sku: "SKU-1",
+        tracked: true
+      }
+    }),
+    JSON.stringify({
+      id: "gid://shopify/InventoryLevel/4?inventory_item_id=3",
+      __parentId: "gid://shopify/InventoryItem/3",
+      location: { id: "gid://shopify/Location/5", name: "Main" },
+      quantities: [{ name: "available", quantity: 6 }, { name: "on_hand", quantity: 8 }]
+    })
+  ].join("\n"));
+
+  assert.equal(records.length, 1);
+  assert.equal(records[0].variantId, "gid://shopify/ProductVariant/1");
+  assert.equal(records[0].inventory.available, 6);
+  assert.equal(records[0].inventory.onHand, 8);
 });

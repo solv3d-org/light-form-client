@@ -121,17 +121,21 @@ const SHOP_SORT_OPTIONS = new Set(["CREATED", "TITLE", "PRICE", "BEST_SELLING"])
 const PRODUCTS_QUERY = `#graphql
   query Products(
     $after: String
+    $before: String
     $country: CountryCode
-    $first: Int!
+    $first: Int
+    $last: Int
     $language: LanguageCode
     $query: String
     $reverse: Boolean!
     $sortKey: ProductSortKeys!
   )
   @inContext(country: $country, language: $language) {
-    products(first: $first, after: $after, query: $query, sortKey: $sortKey, reverse: $reverse) {
+    products(first: $first, last: $last, before: $before, after: $after, query: $query, sortKey: $sortKey, reverse: $reverse) {
       pageInfo {
+        hasPreviousPage
         hasNextPage
+        startCursor
         endCursor
       }
       nodes {
@@ -463,7 +467,44 @@ export async function loadShopCatalog(context, request) {
       reverse: filters.reverse
     }
   });
-  if (!data.collection) throw new Response(`Shop collection not found: ${handle}`, { status: 404 });
+
+  if (!data.collection) {
+    const productsData = await context.storefront.query(PRODUCTS_QUERY, {
+      cache: context.storefront.CacheShort(),
+      variables: {
+        first: paginationVariables.first,
+        last: paginationVariables.last || null,
+        after: paginationVariables.endCursor || null,
+        before: paginationVariables.startCursor || null,
+        query: filters.query || null,
+        sortKey: filters.sortKey,
+        reverse: filters.reverse
+      }
+    });
+    const normalized = normalizeProductConnection(productsData.products, context);
+    const now = new Date();
+    return {
+      products: normalized.products,
+      productConnection: normalized.connection,
+      availableFilters: [],
+      catalogMetadata: {
+        sourceUrl: `https://${context.shopifyConfig.storeDomain}`,
+        sourceLabel: "Shopify catalog",
+        mode: "shopify-products",
+        collection: { handle, missing: true },
+        filters,
+        syncedAt: now.toISOString(),
+        syncedLabel: new Intl.DateTimeFormat("en-SG", {
+          dateStyle: "long",
+          timeStyle: "short",
+          timeZone: "Asia/Singapore"
+        }).format(now),
+        productCount: normalized.products.length,
+        featuredCount: Math.min(FEATURED_COUNT, normalized.products.length)
+      },
+      catalogStatus: "ready"
+    };
+  }
 
   const normalized = normalizeProductConnection(data.collection.products, context);
   const now = new Date();
@@ -503,6 +544,8 @@ export async function loadCatalog(context, request) {
       variables: {
         first,
         after,
+        before: null,
+        last: null,
         query: filters.query || null,
         sortKey: filters.sortKey,
         reverse: filters.reverse

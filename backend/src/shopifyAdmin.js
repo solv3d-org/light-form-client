@@ -682,7 +682,7 @@ export async function registerWebhookSubscriptions(config, topics, callbackUrl) 
     const data = await shopifyAdminGraphql(config, WEBHOOK_SUBSCRIPTION_CREATE_MUTATION, {
       topic,
       subscription: {
-        callbackUrl,
+        uri: callbackUrl,
         format: "JSON"
       }
     });
