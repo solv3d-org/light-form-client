@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import {
   archiveStaffProduct,
@@ -6,6 +7,7 @@ import {
   createStaffProduct,
   createStaffUser,
   createStaffDraftOrder,
+  getStaffOrder,
   getStaffToken,
   getStaffMe,
   listStaffAudit,
@@ -201,6 +203,26 @@ function LoginPanel({ onLogin }) {
         </form>
       </section>
     </main>
+  );
+}
+
+function StaffHeaderSession({ staff, onLogout }) {
+  const [target, setTarget] = useState(null);
+
+  useEffect(() => {
+    setTarget(document.getElementById("staff-header-session"));
+  }, []);
+
+  if (!target) return null;
+  return createPortal(
+    <div className="staff-session">
+      <span>{staff.name || staff.email}</span>
+      <strong>{staff.role}</strong>
+      <button className="button-secondary" type="button" onClick={onLogout}>
+        Log out
+      </button>
+    </div>,
+    target
   );
 }
 
@@ -1195,9 +1217,115 @@ function StaffCart({ staff, cart, isOpen, onClose, onQuantity, onRemove, onItemC
   );
 }
 
+function orderPaymentRows(order) {
+  const payment = order.internal?.payment || {};
+  const method = payment.method === "custom" ? payment.customMethod : payment.method;
+  return [
+    ["Payment method", method],
+    ["Split payment", payment.split ? "yes" : "no"],
+    ["Amount collected", payment.amountCollected ? moneyLabel(payment.amountCollected) : ""],
+    ["Balance due", payment.balanceDue ? moneyLabel(payment.balanceDue) : ""],
+    ["Next collection", payment.balanceCollectionDate],
+    ["Balance notes", payment.balanceNotes],
+    ["Receipt evidence", order.internal?.paymentEvidence?.length ? `${order.internal.paymentEvidence.length} file(s)` : ""]
+  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+}
+
+function orderInternalRows(order) {
+  return [
+    ["Supplier", order.internal?.supplier],
+    ["Stockroom bin", order.internal?.stockroomBin],
+    ["Approval required", order.internal?.approvalRequired ? "yes" : "no"],
+    ["Cost price", order.internal?.costPrice],
+    ["Gross margin", order.internal?.grossMargin],
+    ["Ops notes", order.internal?.opsNotes],
+    ["Created by", order.createdBy?.email],
+    ["Invoice sent", order.invoiceSentAt],
+    ["Completed", order.completedAt],
+    ["Canceled", order.canceledAt]
+  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+}
+
+function OrderDetailPanel({ order, shopifyDraftOrder, onClose }) {
+  const lineItems = order.internal?.lineItems || shopifyDraftOrder?.lineItems || [];
+  return (
+    <section className="staff-panel staff-order-detail">
+      <div className="staff-panel-head">
+        <div>
+          <p className="section-kicker">Invoice detail</p>
+          <h2>{order.shopifyDraftOrderName || order.id}</h2>
+        </div>
+        <button className="button-inline" type="button" onClick={onClose}>
+          Back to orders
+        </button>
+      </div>
+      <dl className="staff-detail-grid">
+        {[
+          ["Status", order.status],
+          ["Customer", order.customer?.email || "No email"],
+          ["Fulfillment", order.fulfillment?.type || "pickup"],
+          ["Shopify draft", order.shopifyDraftOrderId],
+          ["Shopify order", order.shopifyOrderId],
+          ["Invoice URL", order.shopifyInvoiceUrl],
+          ["Created", order.createdAt],
+          ["Updated", order.updatedAt],
+          ["Draft total", shopifyDraftOrder?.totalPrice ? moneyLabel(shopifyDraftOrder.totalPrice) : ""]
+        ]
+          .filter(([, value]) => value !== undefined && value !== null && value !== "")
+          .map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{String(value)}</dd>
+            </div>
+          ))}
+      </dl>
+      <div className="staff-detail-section">
+        <p className="section-kicker">Payment</p>
+        <dl className="staff-detail-grid">
+          {orderPaymentRows(order).map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{String(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <div className="staff-detail-section">
+        <p className="section-kicker">Line items</p>
+        <div className="staff-order-line-list">
+          {lineItems.map((item, index) => (
+            <article className="staff-order-line" key={`${item.variantId || item.id || item.title}-${index}`}>
+              <strong>{item.title || "Line item"}</strong>
+              <span>
+                {item.sku || item.variantId || "No SKU"} · qty {item.quantity || 1} · {moneyLabel(item.price || 0)}
+              </span>
+              {item.priceOverride && <small>Override {moneyLabel(item.priceOverride)}</small>}
+              {item.appliedDiscount && <small>Discount {item.appliedDiscount.valueType || item.appliedDiscount.value_type} {item.appliedDiscount.value}</small>}
+              {item.description && <small>{item.description}</small>}
+            </article>
+          ))}
+        </div>
+      </div>
+      <div className="staff-detail-section">
+        <p className="section-kicker">Internal</p>
+        <dl className="staff-detail-grid">
+          {orderInternalRows(order).map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{String(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+}
+
 function OrdersPanel({ staff, refreshKey }) {
   const [tab, setTab] = useState("pending");
   const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [shopifyDraftOrder, setShopifyDraftOrder] = useState(null);
   const [status, setStatus] = useState("idle");
   const [actionStatus, setActionStatus] = useState("");
   const [error, setError] = useState("");
@@ -1235,6 +1363,20 @@ function OrdersPanel({ staff, refreshKey }) {
     }
   };
 
+  const handleSelectOrder = async (orderId) => {
+    setActionStatus(orderId);
+    setError("");
+    try {
+      const payload = await getStaffOrder(orderId);
+      setSelectedOrder(payload.order);
+      setShopifyDraftOrder(payload.shopifyDraftOrder || null);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setActionStatus("");
+    }
+  };
+
   const handleComplete = async (orderId) => {
     setActionStatus(orderId);
     setError("");
@@ -1248,6 +1390,19 @@ function OrdersPanel({ staff, refreshKey }) {
       setActionStatus("");
     }
   };
+
+  if (selectedOrder) {
+    return (
+      <OrderDetailPanel
+        order={selectedOrder}
+        shopifyDraftOrder={shopifyDraftOrder}
+        onClose={() => {
+          setSelectedOrder(null);
+          setShopifyDraftOrder(null);
+        }}
+      />
+    );
+  }
 
   return (
     <section className="staff-panel staff-orders">
@@ -1270,11 +1425,16 @@ function OrdersPanel({ staff, refreshKey }) {
       <div className="staff-order-list">
         {orders.map((order) => (
           <article className="staff-order" key={order.id}>
-            <div>
+            <button className="staff-order-summary" type="button" onClick={() => handleSelectOrder(order.id)}>
               <strong>{order.shopifyDraftOrderName || order.id}</strong>
               <span>{order.customer?.email || "No email"} · {order.fulfillment?.type || "pickup"}</span>
+              {order.internal?.payment?.split && (
+                <small>
+                  Balance {moneyLabel(order.internal.payment.balanceDue)} · collect {order.internal.payment.balanceCollectionDate || "TBA"}
+                </small>
+              )}
               <small>{order.createdAt}</small>
-            </div>
+            </button>
             {tab === "pending" && (canSendInvoice || canCompleteOrder) && (
               <div className="staff-order-actions">
                 {canSendInvoice && (
@@ -1477,13 +1637,6 @@ export default function StaffPage() {
             <p className="page-kicker">Staff IMS</p>
             <h1>Internal order desk</h1>
           </div>
-          <div className="staff-session">
-            <span>{staff.name || staff.email}</span>
-            <strong>{staff.role}</strong>
-            <button className="button-secondary" type="button" onClick={handleLogout}>
-              Log out
-            </button>
-          </div>
         </div>
         {activeTab === "orders" && canReadOrders && (
           <div className="staff-layout">
@@ -1530,6 +1683,7 @@ export default function StaffPage() {
           }}
         />
       )}
+      <StaffHeaderSession staff={staff} onLogout={handleLogout} />
     </main>
   );
 }

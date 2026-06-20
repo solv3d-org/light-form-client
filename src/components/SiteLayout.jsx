@@ -99,14 +99,11 @@ export default function SiteLayout({ pageTitle, children }) {
           </nav>
           <div className="header-actions">
             {isStaffRoute && staffCart.visible && (
-              <button
-                className="cart-toggle"
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent("lightform:staff-cart-open"))}
-              >
+              <button className="cart-toggle" type="button" onClick={() => window.dispatchEvent(new CustomEvent("lightform:staff-cart-open"))}>
                 Cart <span>{staffCart.count}</span>
               </button>
             )}
+            <div id="staff-header-session"></div>
             {!isStaffRoute && <HeaderCartButton />}
             <button
               className="nav-toggle"

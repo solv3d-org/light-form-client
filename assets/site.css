@@ -1577,7 +1577,25 @@ html[data-theme="warm"] .staff-cart-form select {
   cursor: pointer;
 }
 
+.staff-order-summary {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .staff-result-summary:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.staff-order-summary:hover strong {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -1630,6 +1648,30 @@ html[data-theme="warm"] .staff-cart-form select {
 
 .staff-detail-locations span,
 .staff-detail-locations small {
+  color: var(--text-soft);
+}
+
+.staff-detail-section {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.staff-order-line-list {
+  display: grid;
+  gap: 10px;
+}
+
+.staff-order-line {
+  display: grid;
+  gap: 4px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+}
+
+.staff-order-line span,
+.staff-order-line small {
   color: var(--text-soft);
 }
 
