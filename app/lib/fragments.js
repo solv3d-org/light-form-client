@@ -42,6 +42,7 @@ export const CART_QUERY_FRAGMENT = `#graphql
   fragment CartApiQuery on Cart {
     id
     checkoutUrl
+    updatedAt
     totalQuantity
     lines(first: $numCartLines) {
       nodes {

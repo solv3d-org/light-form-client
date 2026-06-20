@@ -74,7 +74,7 @@ export default function SiteLayout({ pageTitle, children }) {
 
   return (
     <>
-      <header className="site-header">
+      <header className={`site-header${isStaffRoute ? " is-staff-header" : ""}`}>
         <div className="site-shell header-shell">
           <NavLink className="brandmark" to="/">
             <span className="brandmark-word">Light + Form</span>
@@ -103,7 +103,7 @@ export default function SiteLayout({ pageTitle, children }) {
                 Cart <span>{staffCart.count}</span>
               </button>
             )}
-            <div id="staff-header-session"></div>
+            {isStaffRoute && <div id="staff-header-session"></div>}
             {!isStaffRoute && <HeaderCartButton />}
             <button
               className="nav-toggle"

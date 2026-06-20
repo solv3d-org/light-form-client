@@ -1,8 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
-
 @font-face {
   font-family: "Megumi";
-  src: local("Megumi Ultra Light"), local("Megumi UltraLight"), local("FSP DEMO - Megumi"), url("/fonts/Megumi-UltraLight.woff2") format("woff2");
+  src: local("Megumi Ultra Light"), local("Megumi UltraLight"), local("FSP DEMO - Megumi");
   font-weight: 200;
   font-style: normal;
   font-display: swap;
@@ -10,7 +8,7 @@
 
 @font-face {
   font-family: "Forma DJR Deck";
-  src: local("Forma DJR Deck"), local("Forma DJR Deck Regular"), url("/fonts/Forma-DJR-Deck.woff2") format("woff2");
+  src: local("Forma DJR Deck"), local("Forma DJR Deck Regular");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -18,7 +16,7 @@
 
 @font-face {
   font-family: "Ballinger Mono";
-  src: local("Ballinger Mono"), local("Ballinger Mono Regular"), url("/fonts/Ballinger-Mono.woff2") format("woff2");
+  src: local("Ballinger Mono"), local("Ballinger Mono Regular");
   font-weight: 400 800;
   font-style: normal;
   font-display: swap;
@@ -221,26 +219,26 @@ button {
   display: contents;
 }
 
-.site-header:has(#staff-header-session) .header-shell {
+.site-header.is-staff-header .header-shell {
   gap: 18px;
 }
 
-.site-header:has(#staff-header-session) .brandmark {
+.site-header.is-staff-header .brandmark {
   flex-basis: 180px;
   overflow: hidden;
 }
 
-.site-header:has(#staff-header-session) .site-nav {
+.site-header.is-staff-header .site-nav {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.site-header:has(#staff-header-session) .site-nav ul {
+.site-header.is-staff-header .site-nav ul {
   justify-content: center;
   gap: clamp(12px, 1.8vw, 26px);
 }
 
-.site-header:has(#staff-header-session) .site-nav a {
+.site-header.is-staff-header .site-nav a {
   white-space: nowrap;
   font-size: clamp(0.68rem, 0.85vw, 0.82rem);
   letter-spacing: 0.12em;
@@ -2060,11 +2058,11 @@ html[data-theme="warm"] .staff-cart-form select {
 }
 
 @media (max-width: 1180px) {
-  .site-header:has(#staff-header-session) .nav-toggle {
+  .site-header.is-staff-header .nav-toggle {
     display: inline-flex;
   }
 
-  .site-header:has(#staff-header-session) .site-nav {
+  .site-header.is-staff-header .site-nav {
     position: absolute;
     top: 84px;
     left: 0;
@@ -2075,11 +2073,11 @@ html[data-theme="warm"] .staff-cart-form select {
     display: none;
   }
 
-  .site-header:has(#staff-header-session) .site-nav.is-open {
+  .site-header.is-staff-header .site-nav.is-open {
     display: block;
   }
 
-  .site-header:has(#staff-header-session) .site-nav ul {
+  .site-header.is-staff-header .site-nav ul {
     flex-direction: column;
     align-items: start;
     gap: 18px;

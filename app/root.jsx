@@ -18,6 +18,7 @@ import { getInitialTheme, saveManualThemeOverride } from "../src/lib/theme";
 
 export function links() {
   return [
+    { rel: "icon", href: "/favicon.ico" },
     { rel: "preconnect", href: "https://cdn.shopify.com" },
     { rel: "preconnect", href: "https://shop.app" }
   ];

@@ -299,8 +299,8 @@ function StaffUserRow({ user, permissionConfig, status, onSave, onToggleActive }
           <input
             type="password"
             value={draft.password}
-            placeholder="New password"
-            aria-label="New password"
+            placeholder="Reset password"
+            aria-label="Reset password"
             autoComplete="new-password"
             onChange={(event) => setDraftValue("password", event.target.value)}
           />
@@ -429,8 +429,8 @@ function StaffUsersPanel() {
         <input
           type="password"
           value={form.password}
-          placeholder="Temporary password"
-          aria-label="Temporary password"
+          placeholder="Initial password"
+          aria-label="Initial password"
           autoComplete="new-password"
           onChange={(event) => setFormValue("password", event.target.value)}
           required
