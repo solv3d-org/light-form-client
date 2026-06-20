@@ -14,7 +14,6 @@ const pages = [
 const staffPages = [
   { id: "orders", label: "Orders", href: "/staff#orders" },
   { id: "checkout", label: "In-Store Checkout", href: "/staff#checkout" },
-  { id: "storefront-curation", label: "Storefront Curation", href: "/staff#storefront-curation" },
   { id: "staff-activity", label: "Staff Activity", href: "/staff#staff-activity" },
   { id: "access-management", label: "Access Management", href: "/staff#access-management" }
 ];
