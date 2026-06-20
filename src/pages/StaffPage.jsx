@@ -99,6 +99,14 @@ function hasStaffPermission(staff, permission) {
   return (staff?.effectivePermissions || []).includes(permission);
 }
 
+function parseStaffHash(hash) {
+  const parts = String(hash || "").replace(/^#/, "").split("/").filter(Boolean);
+  return {
+    tab: parts[0] || "",
+    productId: parts[0] === "checkout" && parts[1] === "product" ? decodeURIComponent(parts.slice(2).join("/")) : ""
+  };
+}
+
 function roleHasPermission(permissionConfig, role, permission) {
   return (permissionConfig.rolePermissions?.[role] || []).includes(permission);
 }
