@@ -135,10 +135,10 @@ const routes = [
     service: "staff-ims-api",
     catalogSource: config.catalog.source,
     shopifyConfigured: isShopifyAdminConfigured(config),
-    commerceMode: config.catalog.source === "shopify" ? "shopify-admin" : "csv",
+    commerceMode: "shopify-admin",
     storage: {
       ...store.storage(),
-      catalog: config.catalog.source === "shopify" ? "shopify-admin" : "csv"
+      catalog: "shopify-admin"
     },
     webhooks: {
       configured: Boolean(config.shopify.webhookSecret || config.shopify.clientSecret),

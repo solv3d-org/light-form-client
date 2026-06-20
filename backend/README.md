@@ -11,11 +11,11 @@ npm run dev
 
 The first start bootstraps one admin if `data/staff-users.json` is empty and `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` are set.
 
-Set `STAFF_CATALOG_SOURCE=csv` for MVP/local testing or `STAFF_CATALOG_SOURCE=shopify` for live Admin API mode. CSV mode copies the dated preserved snapshots into `data/local-shopify-products.csv` and `data/local-shopify-inventory.csv` if those working files are missing, then mutates only the working copies.
+Set `STAFF_CATALOG_SOURCE=shopify`; staff catalog operations use the Shopify Admin API.
 
 Set `DATABASE_URL` to use Postgres for IMS-only data: staff users, RBAC overrides, staff order records, and audit entries. Without `DATABASE_URL`, local development uses `data/staff-users.json`, `data/staff-orders.json`, and `data/staff-audit-log.jsonl`.
 
-Before switching to `STAFF_CATALOG_SOURCE=shopify`, set `SHOPIFY_LOCATION_ID=gid://shopify/Location/...` and run `npm run shopify:preflight` from the repo root. The preflight performs read-only schema/location checks and does not create or update Shopify products.
+Set `SHOPIFY_LOCATION_ID=gid://shopify/Location/...` and run `npm run shopify:preflight` from the repo root. The preflight performs read-only schema/location checks and does not create or update Shopify products.
 
 Set `SHOPIFY_WEBHOOK_SECRET` or `SHOPIFY_CLIENT_SECRET` for `/webhooks/shopify` HMAC verification. Set `WEBHOOK_PUBLIC_BASE_URL=https://...` and run `npm run shopify:register-webhooks` to create Shopify webhook subscriptions.
 

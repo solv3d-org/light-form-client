@@ -20,8 +20,8 @@ function sign(input, secret) {
 }
 
 export function hashPassword(password) {
-  if (typeof password !== "string" || password.length < 8) {
-    throw new Error("Password must be at least 8 characters.");
+  if (typeof password !== "string" || !password.length) {
+    throw new Error("Password required.");
   }
 
   const salt = crypto.randomBytes(16).toString("base64url");

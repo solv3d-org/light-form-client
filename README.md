@@ -14,7 +14,7 @@ Root `npm run dev` starts the Hydrogen storefront and `backend/src/server.js`. `
 Copy `.env.example` to `.env.local` and set `PUBLIC_STORE_DOMAIN`, `PUBLIC_STOREFRONT_API_TOKEN`, and `SESSION_SECRET` to load Shopify products and cart checkout. The Hydrogen storefront fails fast if Storefront env is missing in dev or production.
 
 Backend config lives in `backend/.env.local`; copy `backend/.env.example` if needed.
-Set backend `STAFF_CATALOG_SOURCE=csv` for local MVP CRUD against working CSV copies, or `STAFF_CATALOG_SOURCE=shopify` for live Shopify Admin CRUD.
+Backend catalog operations use Shopify Admin API via `STAFF_CATALOG_SOURCE=shopify`.
 Set backend `DATABASE_URL` to store IMS-only staff users, staff orders, and audit entries in Postgres.
 Run `npm run shopify:preflight` before live mode; it is read-only.
 

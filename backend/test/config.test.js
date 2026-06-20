@@ -17,10 +17,6 @@ function baseConfig(source) {
   };
 }
 
-test("csv catalog source does not require Shopify Admin credentials", () => {
-  assert.doesNotThrow(() => assertRuntimeConfig(baseConfig("csv")));
-});
-
 test("invalid catalog source fails runtime config", () => {
   assert.throws(() => assertRuntimeConfig(baseConfig("bad")), /STAFF_CATALOG_SOURCE/);
 });
