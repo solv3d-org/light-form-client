@@ -414,14 +414,84 @@ function productDraftFromVariant(variant) {
   };
 }
 
+function metadataRows(variant) {
+  const product = variant.product || {};
+  return [
+    ["Product title", product.title],
+    ["Variant title", variant.title],
+    ["Handle", product.handle],
+    ["SKU", variant.sku],
+    ["Barcode", variant.barcode],
+    ["Vendor", product.vendor],
+    ["Product type", product.productType],
+    ["Status", product.status],
+    ["Price", variant.price],
+    ["Compare at", variant.compareAtPrice],
+    ["Product ID", product.id],
+    ["Variant ID", variant.id],
+    ["Numeric variant ID", variant.numericId],
+    ["Inventory item ID", variant.inventory?.inventoryItemId],
+    ["Inventory tracked", variant.inventory?.tracked ? "yes" : "no"],
+    ["Available", variant.inventory?.available],
+    ["On hand", variant.inventory?.onHand]
+  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+}
+
+function InventoryDetailPanel({ variant, onClose }) {
+  const levels = variant.inventory?.levels || [];
+
+  return (
+    <section className="staff-detail-panel">
+      <div className="staff-panel-head">
+        <div>
+          <p className="section-kicker">Product detail</p>
+          <h2>{variant.product?.title || variant.title || "Stock item"}</h2>
+        </div>
+        <button className="button-inline" type="button" onClick={onClose}>
+          Close
+        </button>
+      </div>
+      <dl className="staff-detail-grid">
+        {metadataRows(variant).map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{String(value)}</dd>
+          </div>
+        ))}
+      </dl>
+      {levels.length > 0 && (
+        <div className="staff-detail-locations">
+          <p className="section-kicker">Locations</p>
+          {levels.map((level) => {
+            const available = level.quantities?.find((quantity) => quantity.name === "available")?.quantity ?? 0;
+            const onHand = level.quantities?.find((quantity) => quantity.name === "on_hand")?.quantity ?? 0;
+            return (
+              <article key={level.locationId || level.locationName}>
+                <strong>{level.locationName || level.locationId}</strong>
+                <span>Available {available} · On hand {onHand}</span>
+                {level.locationId && <small>{level.locationId}</small>}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function InventorySearch({ canAdd, canManage, onAdd }) {
   const [query, setQuery] = useState("");
   const [variants, setVariants] = useState([]);
   const [productForm, setProductForm] = useState(EMPTY_PRODUCT_FORM);
   const [editing, setEditing] = useState(null);
+  const [detailVariant, setDetailVariant] = useState(null);
   const [stockDrafts, setStockDrafts] = useState({});
+  const [selectedVariantIds, setSelectedVariantIds] = useState([]);
+  const [bulkOnHand, setBulkOnHand] = useState("");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const selectedVariants = variants.filter((variant) => selectedVariantIds.includes(variant.id));
+  const allVisibleSelected = variants.length > 0 && selectedVariants.length === variants.length;
 
   const loadSearch = async (searchQuery = query) => {
     setStatus("loading");
@@ -470,6 +540,16 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
 
   const setEditingValue = (key, value) => {
     setEditing((current) => ({ ...current, [key]: value }));
+  };
+
+  const toggleSelected = (variantId) => {
+    setSelectedVariantIds((current) =>
+      current.includes(variantId) ? current.filter((id) => id !== variantId) : [...current, variantId]
+    );
+  };
+
+  const toggleAllVisible = () => {
+    setSelectedVariantIds(allVisibleSelected ? [] : variants.map((variant) => variant.id));
   };
 
   const handleCreateProduct = async (event) => {
@@ -544,6 +624,57 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
     }
   };
 
+  const handleBulkAdd = () => {
+    selectedVariants.forEach((variant) => onAdd(variant));
+  };
+
+  const handleBulkSetOnHand = async (event) => {
+    event.preventDefault();
+    const quantity = Number(bulkOnHand);
+    if (!selectedVariants.length) return;
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      setError("Bulk stock must be a non-negative integer.");
+      return;
+    }
+
+    setStatus("saving");
+    setError("");
+    try {
+      await Promise.all(
+        selectedVariants.map((variant) => {
+          const draft = productDraftFromVariant(variant);
+          return setStaffInventoryOnHand({
+            id: draft.id,
+            sku: draft.sku,
+            variantId: draft.variantId,
+            inventoryItemId: draft.inventoryItemId,
+            onHand: bulkOnHand
+          });
+        })
+      );
+      setBulkOnHand("");
+      await loadSearch();
+    } catch (nextError) {
+      setError(nextError.message);
+      setStatus("idle");
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (!selectedVariants.length) return;
+    if (!window.confirm(`Archive ${selectedVariants.length} selected products?`)) return;
+    setStatus("saving");
+    setError("");
+    try {
+      await Promise.all(selectedVariants.map((variant) => archiveStaffProduct(productDraftFromVariant(variant).id)));
+      setSelectedVariantIds([]);
+      await loadSearch();
+    } catch (nextError) {
+      setError(nextError.message);
+      setStatus("idle");
+    }
+  };
+
   return (
     <section className="staff-panel staff-inventory">
       <div className="staff-panel-head">
@@ -585,19 +716,53 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
         </form>
       )}
       {error && <p className="staff-error">{error}</p>}
+      {variants.length > 0 && (
+        <div className="staff-bulk-actions">
+          <label className="staff-checkbox">
+            <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} />
+            {selectedVariants.length ? `${selectedVariants.length} selected` : "Select all"}
+          </label>
+          {canAdd && (
+            <button className="button-inline" type="button" disabled={!selectedVariants.length} onClick={handleBulkAdd}>
+              Add selected
+            </button>
+          )}
+          {canManage && (
+            <form className="staff-bulk-stock-form" onSubmit={handleBulkSetOnHand}>
+              <input
+                type="number"
+                min="0"
+                value={bulkOnHand}
+                placeholder="On hand"
+                aria-label="Bulk on hand"
+                onChange={(event) => setBulkOnHand(event.target.value)}
+              />
+              <button className="button-inline" type="submit" disabled={!selectedVariants.length || status === "saving"}>
+                Set stock
+              </button>
+              <button className="button-inline" type="button" disabled={!selectedVariants.length || status === "saving"} onClick={handleBulkArchive}>
+                Archive selected
+              </button>
+            </form>
+          )}
+        </div>
+      )}
       <div className="staff-result-list">
         {variants.map((variant) => {
           const draft = productDraftFromVariant(variant);
           const stockValue = stockDrafts[variant.id] ?? draft.onHand;
           return (
             <article className="staff-result" key={variant.id}>
-              <div>
+              <label className="staff-result-select">
+                <input type="checkbox" checked={selectedVariantIds.includes(variant.id)} onChange={() => toggleSelected(variant.id)} />
+              </label>
+              <button className="staff-result-summary" type="button" onClick={() => setDetailVariant(variant)}>
                 <strong>{variant.product?.title || "Product"}</strong>
                 <span>{variant.title === "Default Title" ? variant.sku || "Default" : variant.title}</span>
                 <small>
                   {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
                 </small>
-              </div>
+              </button>
               <div className="staff-result-actions">
                 {canAdd && (
                   <button className="button-inline" type="button" onClick={() => onAdd(variant)}>
@@ -631,6 +796,7 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
           );
         })}
       </div>
+      {detailVariant && <InventoryDetailPanel variant={detailVariant} onClose={() => setDetailVariant(null)} />}
       {editing && (
         <form className="staff-product-edit" onSubmit={handleSaveProduct}>
           <StaffField label="Title">

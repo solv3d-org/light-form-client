@@ -1481,6 +1481,7 @@ html[data-theme="warm"] .staff-user-controls select {
 .staff-user-row,
 .staff-cart-line {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 13px;
@@ -1490,6 +1491,110 @@ html[data-theme="warm"] .staff-user-controls select {
 
 .staff-user-editor {
   display: block;
+}
+
+.staff-bulk-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+}
+
+.staff-bulk-stock-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.staff-bulk-stock-form input {
+  width: 108px;
+  padding: 8px 9px;
+}
+
+.staff-result-select {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.staff-result-select input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.staff-result-summary {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.staff-result-summary:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.staff-detail-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.staff-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.staff-detail-grid div,
+.staff-detail-locations article {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+}
+
+.staff-detail-grid dt {
+  margin-bottom: 4px;
+  color: var(--text-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.staff-detail-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-detail-locations {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.staff-detail-locations article {
+  display: grid;
+  gap: 3px;
+}
+
+.staff-detail-locations span,
+.staff-detail-locations small {
+  color: var(--text-soft);
 }
 
 .staff-user-editor form,
@@ -1508,7 +1613,7 @@ html[data-theme="warm"] .staff-user-controls select {
   padding-top: 4px;
 }
 
-.staff-result div,
+.staff-result-summary,
 .staff-result-actions,
 .staff-order div,
 .staff-audit-row div,
@@ -1780,6 +1885,10 @@ html[data-theme="warm"] .staff-user-controls select {
   }
 
   .health-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-detail-grid {
     grid-template-columns: 1fr;
   }
 
