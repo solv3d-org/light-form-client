@@ -1399,9 +1399,21 @@ html[data-theme="warm"] .staff-user-controls select {
   font-size: 0.88rem;
 }
 
+.staff-page .staff-session {
+  position: fixed;
+  top: 18px;
+  right: max(24px, calc((100vw - 1200px) / 2 + 24px));
+  z-index: 80;
+  min-height: 48px;
+}
+
 .staff-session strong {
   color: var(--text);
   text-transform: uppercase;
+}
+
+.staff-session .button-secondary {
+  padding: 10px 18px;
 }
 
 .staff-layout {
@@ -1428,6 +1440,15 @@ html[data-theme="warm"] .staff-user-controls select {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
+}
+
+.staff-search-status {
+  align-self: center;
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .staff-product-form,
@@ -1882,6 +1903,11 @@ html[data-theme="warm"] .staff-user-controls select {
   .staff-session {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .staff-page .staff-session {
+    position: static;
+    min-height: 0;
   }
 
   .staff-search,

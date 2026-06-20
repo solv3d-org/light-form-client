@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import {
   archiveStaffProduct,
   completeStaffOrder,
@@ -23,6 +24,12 @@ import {
 const STAFF_ROLES = ["viewer", "operator", "manager", "admin"];
 const EMPTY_PERMISSION_OVERRIDES = { allow: [], deny: [] };
 const FALLBACK_PERMISSION_CONFIG = { roles: STAFF_ROLES, permissions: [], rolePermissions: {} };
+const STAFF_TABS = [
+  { id: "orders", permissions: ["order:read"] },
+  { id: "checkout", permissions: ["inventory:read", "order:create"] },
+  { id: "staff-activity", permissions: ["audit:read"] },
+  { id: "access-management", permissions: ["user:manage"] }
+];
 
 const EMPTY_ADDRESS = {
   firstName: "",
@@ -416,12 +423,12 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
-  const loadSearch = async () => {
+  const loadSearch = async (searchQuery = query) => {
     setStatus("loading");
     setError("");
 
     try {
-      const payload = await searchStaffInventory(query);
+      const payload = await searchStaffInventory(searchQuery);
       setVariants(payload.variants || []);
     } catch (nextError) {
       setError(nextError.message);
@@ -429,6 +436,28 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
       setStatus("idle");
     }
   };
+
+  useEffect(() => {
+    let canceled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setStatus("loading");
+      setError("");
+      try {
+        const payload = await searchStaffInventory(query, { signal: controller.signal });
+        if (!canceled) setVariants(payload.variants || []);
+      } catch (nextError) {
+        if (!canceled && nextError.name !== "AbortError") setError(nextError.message);
+      } finally {
+        if (!canceled) setStatus("idle");
+      }
+    }, 250);
+    return () => {
+      canceled = true;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [query]);
 
   const handleSearch = async (event) => {
     event.preventDefault();
@@ -525,9 +554,7 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
       </div>
       <form className="staff-search" onSubmit={handleSearch}>
         <input value={query} placeholder="Search SKU, title, barcode" onChange={(event) => setQuery(event.target.value)} />
-        <button className="button-secondary" type="submit" disabled={status === "loading"}>
-          Search
-        </button>
+        <span className="staff-search-status">{status === "loading" ? "Searching" : "Live"}</span>
       </form>
       {canManage && (
         <form className="staff-product-form" onSubmit={handleCreateProduct}>
@@ -982,6 +1009,12 @@ export default function StaffPage() {
   const [authStatus, setAuthStatus] = useState("checking");
   const [cart, setCart] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const visibleTabs = useMemo(
+    () => STAFF_TABS.filter((tab) => tab.permissions.some((permission) => hasStaffPermission(staff, permission))),
+    [staff]
+  );
 
   useEffect(() => {
     if (!getStaffToken()) {
@@ -994,6 +1027,17 @@ export default function StaffPage() {
       .catch(() => saveStaffToken(""))
       .finally(() => setAuthStatus("ready"));
   }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("lightform:staff-nav", { detail: { visibleTabs: visibleTabs.map((tab) => tab.id) } }));
+  }, [visibleTabs]);
+
+  useEffect(() => {
+    if (!staff || !visibleTabs.length) return;
+    const requestedTab = (location.hash || "").slice(1);
+    if (requestedTab && visibleTabs.some((tab) => tab.id === requestedTab)) return;
+    navigate(`/staff#${visibleTabs[0].id}`, { replace: true });
+  }, [location.hash, navigate, staff, visibleTabs]);
 
   const addVariant = (variant) => {
     setCart((current) => {
@@ -1043,6 +1087,7 @@ export default function StaffPage() {
   const canAdjustInventory = hasStaffPermission(staff, "inventory:adjust");
   const canManageStaff = hasStaffPermission(staff, "user:manage");
   const canReadAudit = hasStaffPermission(staff, "audit:read");
+  const activeTab = (location.hash || `#${visibleTabs[0]?.id || ""}`).slice(1);
 
   return (
     <main className="staff-page">
@@ -1060,26 +1105,46 @@ export default function StaffPage() {
             </button>
           </div>
         </div>
-        <div className="staff-layout">
-          <div className="staff-main-column">
-            {canReadInventory && <InventorySearch canAdd={canCreateOrders} canManage={canAdjustInventory} onAdd={addVariant} />}
-            {canReadOrders && <OrdersPanel staff={staff} refreshKey={refreshKey} />}
-            {canManageStaff && <StaffUsersPanel />}
-            {canReadAudit && <AuditLogPanel />}
+        {activeTab === "orders" && canReadOrders && (
+          <div className="staff-layout">
+            <div className="staff-main-column">
+              <OrdersPanel staff={staff} refreshKey={refreshKey} />
+            </div>
           </div>
-          {canCreateOrders && (
-            <StaffCart
-              staff={staff}
-              cart={cart}
-              onQuantity={setQuantity}
-              onRemove={(variantId) => setQuantity(variantId, 0)}
-              onDraftCreated={() => {
-                setCart([]);
-                setRefreshKey((value) => value + 1);
-              }}
-            />
-          )}
-        </div>
+        )}
+        {activeTab === "checkout" && (
+          <div className="staff-layout">
+            <div className="staff-main-column">
+              {canReadInventory && <InventorySearch canAdd={canCreateOrders} canManage={canAdjustInventory} onAdd={addVariant} />}
+            </div>
+            {canCreateOrders && (
+              <StaffCart
+                staff={staff}
+                cart={cart}
+                onQuantity={setQuantity}
+                onRemove={(variantId) => setQuantity(variantId, 0)}
+                onDraftCreated={() => {
+                  setCart([]);
+                  setRefreshKey((value) => value + 1);
+                }}
+              />
+            )}
+          </div>
+        )}
+        {activeTab === "staff-activity" && canReadAudit && (
+          <div className="staff-layout">
+            <div className="staff-main-column">
+              <AuditLogPanel />
+            </div>
+          </div>
+        )}
+        {activeTab === "access-management" && canManageStaff && (
+          <div className="staff-layout">
+            <div className="staff-main-column">
+              <StaffUsersPanel />
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );

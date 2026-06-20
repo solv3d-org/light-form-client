@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useOptimisticCart } from "@shopify/hydrogen";
-import { NavLink, useLocation, useRouteLoaderData } from "react-router";
+import { Link, NavLink, useLocation, useRouteLoaderData } from "react-router";
 import { useCartDrawer } from "../context/CartDrawerContext";
 import CartDrawer from "./CartDrawer";
 
@@ -9,6 +9,13 @@ const pages = [
   { id: "shop", label: "Shop", href: "/shop" },
   { id: "services", label: "Our Services", href: "/services" },
   { id: "about", label: "About Us", href: "/about" }
+];
+
+const staffPages = [
+  { id: "orders", label: "Orders", href: "/staff#orders" },
+  { id: "checkout", label: "In-Store Checkout", href: "/staff#checkout" },
+  { id: "staff-activity", label: "Staff Activity", href: "/staff#staff-activity" },
+  { id: "access-management", label: "Access Management", href: "/staff#access-management" }
 ];
 
 const footerLinks = [
@@ -33,7 +40,11 @@ function HeaderCartButton() {
 
 export default function SiteLayout({ pageTitle, children }) {
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const [staffNavPages, setStaffNavPages] = useState([]);
   const location = useLocation();
+  const isStaffRoute = location.pathname.startsWith("/staff");
+  const navPages = isStaffRoute ? staffNavPages : pages;
+  const activeStaffHash = location.hash || "#orders";
 
   useEffect(() => {
     if (pageTitle) document.title = pageTitle;
@@ -43,6 +54,15 @@ export default function SiteLayout({ pageTitle, children }) {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     setIsNavOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleStaffNav = (event) => {
+      const visibleIds = new Set(event.detail?.visibleTabs || []);
+      setStaffNavPages(staffPages.filter((page) => visibleIds.has(page.id)));
+    };
+    window.addEventListener("lightform:staff-nav", handleStaffNav);
+    return () => window.removeEventListener("lightform:staff-nav", handleStaffNav);
+  }, []);
 
   return (
     <>
@@ -54,17 +74,23 @@ export default function SiteLayout({ pageTitle, children }) {
           </NavLink>
           <nav className={`site-nav${isNavOpen ? " is-open" : ""}`} id="site-navigation" aria-label="Primary navigation">
             <ul>
-              {pages.map((page) => (
+              {navPages.map((page) => (
                 <li key={page.id}>
-                  <NavLink className={({ isActive }) => (isActive ? "is-active" : "")} to={page.href}>
-                    {page.label}
-                  </NavLink>
+                  {isStaffRoute ? (
+                    <Link className={activeStaffHash === `#${page.id}` ? "is-active" : ""} to={page.href}>
+                      {page.label}
+                    </Link>
+                  ) : (
+                    <NavLink className={({ isActive }) => (isActive ? "is-active" : "")} to={page.href}>
+                      {page.label}
+                    </NavLink>
+                  )}
                 </li>
               ))}
             </ul>
           </nav>
           <div className="header-actions">
-            <HeaderCartButton />
+            {!isStaffRoute && <HeaderCartButton />}
             <button
               className="nav-toggle"
               type="button"

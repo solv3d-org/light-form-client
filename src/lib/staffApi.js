@@ -32,14 +32,15 @@ export function saveStaffToken(token) {
   }
 }
 
-export async function staffRequest(path, { method = "GET", body, token = getStaffToken() } = {}) {
+export async function staffRequest(path, { method = "GET", body, token = getStaffToken(), signal } = {}) {
   const response = await fetch(`${staffApiConfig.baseUrl}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     },
-    body: body == null ? undefined : JSON.stringify(body)
+    body: body == null ? undefined : JSON.stringify(body),
+    signal
   });
 
   const payload = await response.json().catch(() => null);
@@ -83,9 +84,9 @@ export function updateStaffUser(userId, input) {
   });
 }
 
-export function searchStaffInventory(query) {
+export function searchStaffInventory(query, options = {}) {
   const params = new URLSearchParams({ q: query, first: "25" });
-  return staffRequest(`/api/inventory/search?${params.toString()}`);
+  return staffRequest(`/api/inventory/search?${params.toString()}`, options);
 }
 
 export function searchStaffProducts(query) {
