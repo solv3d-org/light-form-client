@@ -7,6 +7,7 @@ const CATALOG_PRODUCT_LIMIT = 100;
 const FEATURED_COUNT = 12;
 const MONEY_FORMATTER_CACHE = new Map();
 const DEFAULT_COLLECTION_HANDLE = "all";
+const DEFAULT_HOME_COLLECTION_HANDLE = "frontpage";
 
 const MONEY_FRAGMENT = `#graphql
   fragment MoneyFields on MoneyV2 {
@@ -116,7 +117,7 @@ const PRODUCT_VARIANT_FRAGMENT = `#graphql
   }
 `;
 
-const SHOP_SORT_OPTIONS = new Set(["CREATED", "TITLE", "PRICE", "BEST_SELLING"]);
+const SHOP_SORT_OPTIONS = new Set(["MANUAL", "CREATED", "TITLE", "PRICE", "BEST_SELLING"]);
 
 const PRODUCTS_QUERY = `#graphql
   query Products(
@@ -139,18 +140,6 @@ const PRODUCTS_QUERY = `#graphql
         endCursor
       }
       nodes {
-        ...ProductCardFields
-      }
-    }
-  }
-  ${PRODUCT_CARD_FRAGMENT}
-`;
-
-const CURATED_PRODUCTS_QUERY = `#graphql
-  query CuratedProducts($ids: [ID!]!, $country: CountryCode, $language: LanguageCode)
-  @inContext(country: $country, language: $language) {
-    nodes(ids: $ids) {
-      ... on Product {
         ...ProductCardFields
       }
     }
@@ -389,15 +378,15 @@ function readShopFilters(request) {
     return {
       search: "",
       availability: "all",
-      sort: "newest",
+      sort: "manual",
       query: "",
       productFilters: [],
       selectedFilterInputs: [],
       priceMin: "",
       priceMax: "",
-      sortKey: "CREATED_AT",
-      collectionSortKey: "CREATED",
-      reverse: true,
+      sortKey: "TITLE",
+      collectionSortKey: "MANUAL",
+      reverse: false,
       baseQueryString: ""
     };
   }
@@ -405,7 +394,7 @@ function readShopFilters(request) {
   const url = new URL(request.url);
   const search = (url.searchParams.get("q") || "").trim();
   const availability = url.searchParams.get("availability") || "all";
-  const sort = url.searchParams.get("sort") || "newest";
+  const sort = url.searchParams.get("sort") || "manual";
   const priceMin = (url.searchParams.get("price_min") || "").trim();
   const priceMax = (url.searchParams.get("price_max") || "").trim();
   const selectedFilterInputs = url.searchParams.getAll("filter").map((value) => value.trim()).filter(Boolean);
@@ -423,13 +412,14 @@ function readShopFilters(request) {
   if (availability === "sold-out") queryTerms.push("available_for_sale:false");
 
   const sortMap = {
+    manual: { sortKey: "TITLE", collectionSortKey: "MANUAL", reverse: false },
     newest: { sortKey: "CREATED_AT", collectionSortKey: "CREATED", reverse: true },
     "title-asc": { sortKey: "TITLE", reverse: false },
     "price-asc": { sortKey: "PRICE", reverse: false },
     "price-desc": { sortKey: "PRICE", reverse: true },
     "best-selling": { sortKey: "BEST_SELLING", reverse: false }
   };
-  const sortConfig = sortMap[sort] || sortMap.newest;
+  const sortConfig = sortMap[sort] || sortMap.manual;
   const collectionSortKey = SHOP_SORT_OPTIONS.has(sortConfig.collectionSortKey || sortConfig.sortKey)
     ? sortConfig.collectionSortKey || sortConfig.sortKey
     : "CREATED";
@@ -454,6 +444,10 @@ function collectionHandle(context) {
   return context.env?.PUBLIC_SHOP_COLLECTION_HANDLE || DEFAULT_COLLECTION_HANDLE;
 }
 
+function homeCollectionHandle(context) {
+  return context.env?.PUBLIC_HOME_COLLECTION_HANDLE || DEFAULT_HOME_COLLECTION_HANDLE;
+}
+
 function normalizeProductConnection(connection, context) {
   const products = connection?.nodes || [];
   return {
@@ -465,95 +459,10 @@ function normalizeProductConnection(connection, context) {
   };
 }
 
-async function fetchStorefrontCuration(context) {
-  if (!context.staffApiBaseUrl) return null;
-  try {
-    const response = await fetch(`${context.staffApiBaseUrl}/api/storefront/curation`);
-    if (!response.ok) return null;
-    const payload = await response.json();
-    const legacyItems = Array.isArray(payload?.curation?.items) ? payload.curation.items : [];
-    const homeItems = Array.isArray(payload?.curation?.homeItems) ? payload.curation.homeItems : legacyItems;
-    const shopItems = Array.isArray(payload?.curation?.shopItems) ? payload.curation.shopItems : legacyItems;
-    return homeItems.length || shopItems.length ? { ...payload.curation, homeItems, shopItems } : null;
-  } catch {
-    return null;
-  }
-}
-
-function productMatchesFilters(product, filters) {
-  const search = String(filters.search || "").toLowerCase();
-  if (search) {
-    const haystack = [
-      product.title,
-      product.handle,
-      product.vendor,
-      product.productType,
-      product.selectedVariant?.sku,
-      ...(product.variants || []).map((variant) => variant.sku)
-    ]
-      .join(" ")
-      .toLowerCase();
-    if (!haystack.includes(search)) return false;
-  }
-  if (filters.availability === "available" && !product.availableForSale) return false;
-  if (filters.availability === "sold-out" && product.availableForSale) return false;
-  const price = Number(product.price?.amount || product.priceRange?.minVariantPrice?.amount || 0);
-  if (filters.priceMin && Number.isFinite(Number(filters.priceMin)) && price < Number(filters.priceMin)) return false;
-  if (filters.priceMax && Number.isFinite(Number(filters.priceMax)) && price > Number(filters.priceMax)) return false;
-  return true;
-}
-
-async function loadCuratedProducts(context, surface) {
-  const curation = await fetchStorefrontCuration(context);
-  if (!curation) return null;
-  const items = surface === "home" ? curation.homeItems : curation.shopItems;
-  const ids = items.map((item) => item.productId).filter(Boolean).slice(0, 250);
-  if (!ids.length) return null;
-  const data = await context.storefront.query(CURATED_PRODUCTS_QUERY, {
-    cache: context.storefront.CacheShort(),
-    variables: { ids }
-  });
-  const byId = new Map((data.nodes || []).filter(Boolean).map((product) => [product.id, product]));
-  return ids.map((id) => byId.get(id)).filter(Boolean);
-}
-
-function curatedCatalogResponse(products, context, filters, sourceLabel = "Curated storefront") {
-  const filtered = products
-    .map((product, index) => normalizeShopifyProduct(product, index, context.shopifyConfig))
-    .filter((product) => productMatchesFilters(product, filters))
-    .map((product, index) => ({ ...product, featured: index < FEATURED_COUNT }));
-  const now = new Date();
-  return {
-    products: filtered,
-    productConnection: {
-      nodes: filtered,
-      pageInfo: { hasPreviousPage: false, hasNextPage: false, startCursor: null, endCursor: null }
-    },
-    availableFilters: [],
-    catalogMetadata: {
-      sourceUrl: `https://${context.shopifyConfig.storeDomain}`,
-      sourceLabel,
-      mode: "storefront-curated",
-      filters,
-      syncedAt: now.toISOString(),
-      syncedLabel: new Intl.DateTimeFormat("en-SG", {
-        dateStyle: "long",
-        timeStyle: "short",
-        timeZone: "Asia/Singapore"
-      }).format(now),
-      productCount: filtered.length,
-      featuredCount: Math.min(FEATURED_COUNT, filtered.length)
-    },
-    catalogStatus: "ready"
-  };
-}
-
 export async function loadShopCatalog(context, request) {
   const filters = readShopFilters(request);
   const paginationVariables = getPaginationVariables(request, { pageBy: SHOP_PAGE_SIZE });
   const handle = collectionHandle(context);
-  const curatedProducts = await loadCuratedProducts(context, "shop");
-  if (curatedProducts) return curatedCatalogResponse(curatedProducts, context, filters);
 
   if (filters.search) {
     const productsData = await context.storefront.query(PRODUCTS_QUERY, {
@@ -669,28 +578,28 @@ export async function loadShopCatalog(context, request) {
 
 export async function loadCatalog(context, request) {
   const filters = readShopFilters(request);
-  const curatedProducts = await loadCuratedProducts(context, "home");
-  if (curatedProducts) return curatedCatalogResponse(curatedProducts, context, filters);
-
+  const handle = homeCollectionHandle(context);
   const products = [];
   let after = null;
   let hasNextPage = true;
 
   while (hasNextPage && products.length < HOME_PRODUCT_LIMIT) {
     const first = Math.min(CATALOG_PRODUCT_LIMIT, HOME_PRODUCT_LIMIT - products.length);
-    const data = await context.storefront.query(PRODUCTS_QUERY, {
+    const data = await context.storefront.query(COLLECTION_PRODUCTS_QUERY, {
       cache: context.storefront.CacheShort(),
       variables: {
         first,
-        after,
-        before: null,
+        endCursor: after,
+        startCursor: null,
         last: null,
-        query: filters.query || null,
-        sortKey: filters.sortKey,
-        reverse: filters.reverse
+        handle,
+        filters: [],
+        sortKey: "MANUAL",
+        reverse: false
       }
     });
-    const connection = data.products;
+    const connection = data.collection?.products;
+    if (!connection) break;
     products.push(...connection.nodes);
     hasNextPage = connection.pageInfo.hasNextPage;
     after = connection.pageInfo.endCursor;
@@ -704,9 +613,10 @@ export async function loadCatalog(context, request) {
   return {
     products: normalizedProducts,
     catalogMetadata: {
-      sourceUrl: `https://${context.shopifyConfig.storeDomain}`,
-      sourceLabel: "Shopify catalog",
-      mode: "shopify",
+      sourceUrl: `https://${context.shopifyConfig.storeDomain}/collections/${handle}`,
+      sourceLabel: "Home page",
+      mode: "shopify-collection",
+      collection: { handle },
       filters,
       syncedAt: now.toISOString(),
       syncedLabel: new Intl.DateTimeFormat("en-SG", {

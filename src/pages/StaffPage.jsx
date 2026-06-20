@@ -9,7 +9,6 @@ import {
   getStaffOrder,
   getStaffToken,
   getStaffMe,
-  getStorefrontCuration,
   listStaffAudit,
   listStaffPermissionConfig,
   listStaffUsers,
@@ -17,7 +16,6 @@ import {
   saveStaffToken,
   searchStaffInventory,
   sendStaffInvoice,
-  saveStorefrontCuration,
   setStaffInventoryOnHand,
   staffLogin,
   updateStaffProduct,
@@ -30,7 +28,6 @@ const FALLBACK_PERMISSION_CONFIG = { roles: STAFF_ROLES, permissions: [], rolePe
 const STAFF_TABS = [
   { id: "orders", permissions: ["order:read"] },
   { id: "checkout", permissions: ["inventory:read", "order:create"] },
-  { id: "storefront-curation", permissions: ["storefront:curate"] },
   { id: "staff-activity", permissions: ["audit:read"] },
   { id: "access-management", permissions: ["user:manage"] }
 ];

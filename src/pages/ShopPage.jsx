@@ -2,6 +2,7 @@ import { Pagination } from "@shopify/hydrogen";
 import ProductCard from "../components/ProductCard";
 
 const sortOptions = [
+  ["manual", "Featured"],
   ["newest", "Newest"],
   ["title-asc", "A-Z"],
   ["price-asc", "Price low"],
@@ -70,7 +71,6 @@ function PaginationControls({ PreviousLink, NextLink, hasPreviousPage, hasNextPa
 export default function ShopPage({ products, productConnection, availableFilters = [], catalogMetadata }) {
   const filters = catalogMetadata?.filters || {};
   const connection = productConnection || { nodes: products, pageInfo: {} };
-  const isCurated = catalogMetadata?.mode === "storefront-curated";
 
   return (
     <main>
@@ -89,18 +89,16 @@ export default function ShopPage({ products, productConnection, availableFilters
               <span>Search</span>
               <input name="q" type="search" defaultValue={filters.search || ""} placeholder="Product, SKU, style" />
             </label>
-            {!isCurated && (
-              <label>
-                <span>Sort</span>
-                <select name="sort" defaultValue={filters.sort || "newest"}>
-                  {sortOptions.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+            <label>
+              <span>Sort</span>
+              <select name="sort" defaultValue={filters.sort || "manual"}>
+                {sortOptions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <FacetControls availableFilters={availableFilters} filters={filters} />
             <div className="shop-filter-actions">
               <button type="submit">Apply</button>
