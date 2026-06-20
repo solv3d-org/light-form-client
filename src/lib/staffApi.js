@@ -133,6 +133,10 @@ export function listStaffOrders(status) {
   return staffRequest(`/api/orders${params.toString() ? `?${params.toString()}` : ""}`);
 }
 
+export function getStaffOrder(orderId) {
+  return staffRequest(`/api/orders/${encodeURIComponent(orderId)}`);
+}
+
 export function sendStaffInvoice(orderId) {
   return staffRequest(`/api/orders/${encodeURIComponent(orderId)}/send-invoice`, {
     method: "POST",

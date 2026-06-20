@@ -1,10 +1,37 @@
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Manrope:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
+
+@font-face {
+  font-family: "Megumi";
+  src: local("Megumi Ultra Light"), local("Megumi UltraLight"), local("FSP DEMO - Megumi"), url("/fonts/Megumi-UltraLight.woff2") format("woff2");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Forma DJR Deck";
+  src: local("Forma DJR Deck"), local("Forma DJR Deck Regular"), url("/fonts/Forma-DJR-Deck.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Ballinger Mono";
+  src: local("Ballinger Mono"), local("Ballinger Mono Regular"), url("/fonts/Ballinger-Mono.woff2") format("woff2");
+  font-weight: 400 800;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --site-width: min(1200px, calc(100vw - 48px));
   --transition: 220ms ease;
   --shadow-soft: 0 24px 80px rgba(25, 18, 10, 0.1);
   --shadow-card: 0 18px 40px rgba(18, 14, 10, 0.08);
+  --font-display: "Megumi", "Cormorant Garamond", serif;
+  --font-body: "Forma DJR Deck", "Manrope", sans-serif;
+  --font-mono: "Ballinger Mono", "Space Mono", monospace;
 }
 
 html[data-theme="neutral"] {
@@ -64,7 +91,7 @@ html {
 
 body {
   margin: 0;
-  font-family: "Manrope", sans-serif;
+  font-family: var(--font-body);
   background: var(--bg);
   color: var(--text);
   transition: background var(--transition), color var(--transition);
@@ -113,7 +140,7 @@ button {
 }
 
 .brandmark-word {
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -304,7 +331,7 @@ html[data-theme="cosy"] .hero-layer-cosy {
 .page-hero h1,
 .section-title {
   margin: 0;
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 0.96;
@@ -1001,7 +1028,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
 .cart-head h2 {
   margin: 0;
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-size: 2.3rem;
   font-weight: 500;
 }
@@ -1133,7 +1160,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .teaser-stat-value {
   display: block;
   margin-bottom: 6px;
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-size: 2.6rem;
 }
 
@@ -1184,7 +1211,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
 .line-title {
   margin: 0;
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-size: clamp(2rem, 3vw, 2.6rem);
 }
 
@@ -1212,7 +1239,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .shop-note h2,
 .services-callout h2 {
   margin: 0 0 12px;
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 500;
 }
@@ -1290,7 +1317,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-hero h1,
 .staff-panel h2 {
   margin: 0;
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
@@ -1356,15 +1383,18 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 }
 
 .staff-user-form select,
-.staff-user-controls select {
+.staff-user-controls select,
+.staff-cart-form select {
   color-scheme: dark;
   appearance: auto;
 }
 
 html[data-theme="neutral"] .staff-user-form select,
 html[data-theme="neutral"] .staff-user-controls select,
+html[data-theme="neutral"] .staff-cart-form select,
 html[data-theme="warm"] .staff-user-form select,
-html[data-theme="warm"] .staff-user-controls select {
+html[data-theme="warm"] .staff-user-controls select,
+html[data-theme="warm"] .staff-cart-form select {
   color-scheme: light;
 }
 
@@ -1805,7 +1835,7 @@ html[data-theme="warm"] .staff-user-controls select {
 .health-hero h1,
 .health-card h2 {
   margin: 0;
-  font-family: "Cormorant Garamond", serif;
+  font-family: var(--font-display);
   font-weight: 500;
 }
 
@@ -1856,7 +1886,7 @@ html[data-theme="warm"] .staff-user-controls select {
 
 .health-row strong {
   color: var(--text);
-  font-family: "Space Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.86rem;
   font-weight: 600;
   text-align: right;
@@ -1871,7 +1901,7 @@ html[data-theme="warm"] .staff-user-controls select {
   padding: 7px 11px;
   border: 1px solid var(--line-strong);
   color: var(--text);
-  font-family: "Space Mono", monospace;
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;

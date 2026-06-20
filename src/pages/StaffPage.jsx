@@ -47,9 +47,26 @@ const EMPTY_INTERNAL = {
   stockroomBin: "",
   opsNotes: "",
   approvalRequired: false,
+  paymentMethod: "cash",
+  customPaymentMethod: "",
+  splitPayment: false,
+  amountCollected: "",
+  balanceDue: "",
+  balanceCollectionDate: "",
+  balanceNotes: "",
   costPrice: "",
   grossMargin: ""
 };
+
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "paynow", label: "PayNow" },
+  { value: "paylah", label: "PayLah" },
+  { value: "paywave", label: "PayWave" },
+  { value: "card", label: "Card" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "custom", label: "Custom" }
+];
 
 const EMPTY_PRODUCT_FORM = {
   title: "",
@@ -894,6 +911,12 @@ function StaffCart({ staff, cart, isOpen, onClose, onQuantity, onRemove, onItemC
     try {
       const invalidOverride = cart.find((item) => item.unitPrice !== "" && toMoneyNumber(item.unitPrice) > toMoneyNumber(item.price));
       if (invalidOverride) throw new Error("Unit price cannot exceed catalog price.");
+      const amountCollected = internal.splitPayment ? toMoneyNumber(internal.amountCollected) : total;
+      const balanceDue = internal.splitPayment ? Math.max(0, total - amountCollected) : 0;
+      if (internal.paymentMethod === "custom" && !internal.customPaymentMethod.trim()) throw new Error("Custom payment method required.");
+      if (internal.splitPayment && amountCollected <= 0) throw new Error("Amount collected is required for split payments.");
+      if (internal.splitPayment && amountCollected >= total) throw new Error("Split payment amount must be less than subtotal.");
+      if (internal.splitPayment && !internal.balanceCollectionDate) throw new Error("Next collection date required for split payments.");
       const paymentEvidence = await Promise.all(receiptFiles.map(readReceiptFile));
       const payload = await createStaffDraftOrder({
         email,
@@ -923,6 +946,15 @@ function StaffCart({ staff, cart, isOpen, onClose, onQuantity, onRemove, onItemC
           stockroomBin: internal.stockroomBin,
           opsNotes: internal.opsNotes,
           approvalRequired: internal.approvalRequired,
+          payment: {
+            method: internal.paymentMethod,
+            customMethod: internal.paymentMethod === "custom" ? internal.customPaymentMethod : "",
+            split: internal.splitPayment,
+            amountCollected: amountCollected.toFixed(2),
+            balanceDue: balanceDue.toFixed(2),
+            balanceCollectionDate: internal.splitPayment ? internal.balanceCollectionDate : "",
+            balanceNotes: internal.splitPayment ? internal.balanceNotes : ""
+          },
           paymentEvidence,
           ...(canWriteCost ? { costPrice: internal.costPrice, grossMargin: internal.grossMargin } : {})
         }
@@ -1071,6 +1103,56 @@ function StaffCart({ staff, cart, isOpen, onClose, onQuantity, onRemove, onItemC
           <StaffField label="Stockroom bin">
             <input value={internal.stockroomBin} onChange={(event) => setInternalValue("stockroomBin", event.target.value)} />
           </StaffField>
+          <StaffField label="Payment method">
+            <select value={internal.paymentMethod} onChange={(event) => setInternalValue("paymentMethod", event.target.value)}>
+              {PAYMENT_METHODS.map((method) => (
+                <option key={method.value} value={method.value}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
+          </StaffField>
+          {internal.paymentMethod === "custom" && (
+            <StaffField label="Custom payment method">
+              <input value={internal.customPaymentMethod} onChange={(event) => setInternalValue("customPaymentMethod", event.target.value)} />
+            </StaffField>
+          )}
+          <label className="staff-checkbox">
+            <input
+              type="checkbox"
+              checked={internal.splitPayment}
+              onChange={(event) => setInternalValue("splitPayment", event.target.checked)}
+            />
+            Split payment
+          </label>
+          {internal.splitPayment && (
+            <>
+              <StaffField label="Amount collected">
+                <input
+                  type="number"
+                  min="0"
+                  max={total}
+                  step="0.01"
+                  value={internal.amountCollected}
+                  onChange={(event) => setInternalValue("amountCollected", event.target.value)}
+                />
+              </StaffField>
+              <StaffField label="Balance due">
+                <input value={moneyLabel(Math.max(0, total - toMoneyNumber(internal.amountCollected)))} readOnly />
+              </StaffField>
+              <StaffField label="Next collection date">
+                <input
+                  type="date"
+                  value={internal.balanceCollectionDate}
+                  onChange={(event) => setInternalValue("balanceCollectionDate", event.target.value)}
+                  required
+                />
+              </StaffField>
+              <StaffField label="Balance notes">
+                <textarea value={internal.balanceNotes} onChange={(event) => setInternalValue("balanceNotes", event.target.value)} />
+              </StaffField>
+            </>
+          )}
           <label className="staff-checkbox">
             <input
               type="checkbox"
