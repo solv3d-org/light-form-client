@@ -390,6 +390,37 @@ function normalizeDiscount(input) {
   });
 }
 
+function normalizeMoney(value, label) {
+  if (value == null || value === "") return null;
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) throw new HttpError(400, `${label} invalid.`);
+  return amount;
+}
+
+function normalizeLineDescription(value) {
+  const description = String(value || "").trim();
+  if (!description) return undefined;
+  return [{ name: "Description", value: description.slice(0, 255) }];
+}
+
+function normalizeLineDiscount(item) {
+  const basePrice = normalizeMoney(item.price, "line item price");
+  const overridePrice = normalizeMoney(item.priceOverride ?? item.unitPrice, "line item price override");
+  const manualDiscount = normalizeDiscount(item.appliedDiscount);
+  if (overridePrice == null) return manualDiscount;
+  if (basePrice == null) throw new HttpError(400, "line item price required for price override.");
+  if (overridePrice > basePrice) throw new HttpError(400, "line item price override cannot exceed catalog price.");
+  const overrideAmount = basePrice - overridePrice;
+  if (overrideAmount <= 0) return manualDiscount;
+  if (manualDiscount) throw new HttpError(400, "line item cannot combine price override and applied discount.");
+  return {
+    title: "Staff price override",
+    description: "In-store price override",
+    value_type: "fixed_amount",
+    value: String(overrideAmount)
+  };
+}
+
 function normalizeAddress(input) {
   if (!input) return undefined;
   return cleanObject({
@@ -500,7 +531,8 @@ function normalizeLineItems(input) {
     return cleanObject({
       variant_id: numericShopifyId(item.variantId, "variantId"),
       quantity,
-      applied_discount: normalizeDiscount(item.appliedDiscount)
+      properties: normalizeLineDescription(item.description),
+      applied_discount: normalizeLineDiscount(item)
     });
   });
 }

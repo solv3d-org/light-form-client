@@ -83,6 +83,16 @@ function assertDiscountAccess(user, body) {
   if (hasDiscount && !hasPermission(user, "discount:apply")) throw new HttpError(403, "Discount permission required.");
 }
 
+function assertPriceOverrideAccess(user, body) {
+  const hasOverride = Boolean(body.lineItems?.some((item) => item.priceOverride || item.unitPrice));
+  if (hasOverride && !hasPermission(user, "price:override")) throw new HttpError(403, "Price override permission required.");
+}
+
+function assertLineDescriptionAccess(user, body) {
+  const hasDescription = Boolean(body.lineItems?.some((item) => item.description));
+  if (hasDescription && !hasPermission(user, "line:describe")) throw new HttpError(403, "Line description permission required.");
+}
+
 function assertCostAccess(user, internal) {
   const costKeys = ["costPrice", "grossMargin", "supplierCost", "discountFloor"];
   if (costKeys.some((key) => internal && Object.prototype.hasOwnProperty.call(internal, key)) && !hasPermission(user, "cost:write")) {
@@ -262,6 +272,8 @@ const routes = [
 
   route("POST", "/api/orders/draft", { permission: "order:create" }, async ({ body, user }) => {
     assertDiscountAccess(user, body);
+    assertPriceOverrideAccess(user, body);
+    assertLineDescriptionAccess(user, body);
     assertCostAccess(user, body.internal);
     const draftOrder = await catalogProvider.createDraftOrder(body);
     const order = await store.createOrderRecord({ draftOrder, input: body, actor: user });

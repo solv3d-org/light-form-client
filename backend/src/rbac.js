@@ -10,6 +10,8 @@ export const PERMISSIONS = Object.freeze([
   { key: "order:complete", label: "Complete orders" },
   { key: "order:cancel", label: "Cancel orders" },
   { key: "discount:apply", label: "Apply discounts" },
+  { key: "price:override", label: "Override line prices" },
+  { key: "line:describe", label: "Add line descriptions" },
   { key: "cost:write", label: "Write cost fields" },
   { key: "user:manage", label: "Manage staff" },
   { key: "audit:read", label: "Read audit log" },
