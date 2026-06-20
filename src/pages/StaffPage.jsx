@@ -99,14 +99,6 @@ function hasStaffPermission(staff, permission) {
   return (staff?.effectivePermissions || []).includes(permission);
 }
 
-function parseStaffHash(hash) {
-  const parts = String(hash || "").replace(/^#/, "").split("/").filter(Boolean);
-  return {
-    tab: parts[0] || "",
-    productId: parts[0] === "checkout" && parts[1] === "product" ? decodeURIComponent(parts.slice(2).join("/")) : ""
-  };
-}
-
 function roleHasPermission(permissionConfig, role, permission) {
   return (permissionConfig.rolePermissions?.[role] || []).includes(permission);
 }
@@ -868,7 +860,7 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
   );
 }
 
-function StaffCart({ staff, cart, onQuantity, onRemove, onItemChange, onDraftCreated }) {
+function StaffCart({ staff, cart, isOpen, onClose, onQuantity, onRemove, onItemChange, onDraftCreated }) {
   const [email, setEmail] = useState("");
   const [fulfillment, setFulfillment] = useState({ type: "pickup", deliveryDate: "", dateTba: false });
   const [shippingAddress, setShippingAddress] = useState(EMPTY_ADDRESS);
@@ -948,13 +940,20 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onItemChange, onDraftCre
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <section className="staff-panel staff-cart-panel">
-      <div className="staff-panel-head">
+    <div className="cart-layer" role="presentation">
+      <button className="cart-backdrop" type="button" aria-label="Close cart" onClick={onClose}></button>
+      <aside className="cart-drawer staff-cart-panel" aria-label="Staff cart">
+      <div className="cart-head">
         <div>
           <p className="section-kicker">Cart</p>
           <h2>Selected pieces</h2>
         </div>
+        <button className="cart-close" type="button" aria-label="Close cart" onClick={onClose}>
+          ×
+        </button>
       </div>
 
       <form className="staff-cart-form" onSubmit={handleCreateDraft}>
@@ -1109,7 +1108,8 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onItemChange, onDraftCre
           </button>
         </div>
       </form>
-    </section>
+      </aside>
+    </div>
   );
 }
 
@@ -1282,6 +1282,7 @@ export default function StaffPage() {
   const [staff, setStaff] = useState(null);
   const [authStatus, setAuthStatus] = useState("checking");
   const [cart, setCart] = useState([]);
+  const [isStaffCartOpen, setIsStaffCartOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
@@ -1307,6 +1308,20 @@ export default function StaffPage() {
   }, [visibleTabs]);
 
   useEffect(() => {
+    const handleOpenStaffCart = () => setIsStaffCartOpen(true);
+    window.addEventListener("lightform:staff-cart-open", handleOpenStaffCart);
+    return () => window.removeEventListener("lightform:staff-cart-open", handleOpenStaffCart);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("lightform:staff-cart", {
+        detail: { visible: hasStaffPermission(staff, "order:create"), count: cart.reduce((sum, item) => sum + item.quantity, 0) }
+      })
+    );
+  }, [cart, staff]);
+
+  useEffect(() => {
     if (!staff || !visibleTabs.length) return;
     const requestedTab = (location.hash || "").slice(1);
     if (requestedTab && visibleTabs.some((tab) => tab.id === requestedTab)) return;
@@ -1314,6 +1329,7 @@ export default function StaffPage() {
   }, [location.hash, navigate, staff, visibleTabs]);
 
   const addVariant = (variant) => {
+    setIsStaffCartOpen(true);
     setCart((current) => {
       const existing = current.find((item) => item.variantId === variant.id);
       if (existing) {
@@ -1399,19 +1415,6 @@ export default function StaffPage() {
             <div className="staff-main-column">
               {canReadInventory && <InventorySearch canAdd={canCreateOrders} canManage={canAdjustInventory} onAdd={addVariant} />}
             </div>
-            {canCreateOrders && (
-              <StaffCart
-                staff={staff}
-                cart={cart}
-                onQuantity={setQuantity}
-                onRemove={(variantId) => setQuantity(variantId, 0)}
-                onItemChange={updateCartItem}
-                onDraftCreated={() => {
-                  setCart([]);
-                  setRefreshKey((value) => value + 1);
-                }}
-              />
-            )}
           </div>
         )}
         {activeTab === "staff-activity" && canReadAudit && (
@@ -1429,6 +1432,22 @@ export default function StaffPage() {
           </div>
         )}
       </section>
+      {canCreateOrders && (
+        <StaffCart
+          staff={staff}
+          cart={cart}
+          isOpen={isStaffCartOpen}
+          onClose={() => setIsStaffCartOpen(false)}
+          onQuantity={setQuantity}
+          onRemove={(variantId) => setQuantity(variantId, 0)}
+          onItemChange={updateCartItem}
+          onDraftCreated={() => {
+            setCart([]);
+            setIsStaffCartOpen(false);
+            setRefreshKey((value) => value + 1);
+          }}
+        />
+      )}
     </main>
   );
 }

@@ -41,6 +41,7 @@ function HeaderCartButton() {
 export default function SiteLayout({ pageTitle, children }) {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [staffNavPages, setStaffNavPages] = useState([]);
+  const [staffCart, setStaffCart] = useState({ visible: false, count: 0 });
   const location = useLocation();
   const isStaffRoute = location.pathname.startsWith("/staff");
   const navPages = isStaffRoute ? staffNavPages : pages;
@@ -60,8 +61,15 @@ export default function SiteLayout({ pageTitle, children }) {
       const visibleIds = new Set(event.detail?.visibleTabs || []);
       setStaffNavPages(staffPages.filter((page) => visibleIds.has(page.id)));
     };
+    const handleStaffCart = (event) => {
+      setStaffCart({ visible: Boolean(event.detail?.visible), count: event.detail?.count || 0 });
+    };
     window.addEventListener("lightform:staff-nav", handleStaffNav);
-    return () => window.removeEventListener("lightform:staff-nav", handleStaffNav);
+    window.addEventListener("lightform:staff-cart", handleStaffCart);
+    return () => {
+      window.removeEventListener("lightform:staff-nav", handleStaffNav);
+      window.removeEventListener("lightform:staff-cart", handleStaffCart);
+    };
   }, []);
 
   return (
@@ -90,6 +98,15 @@ export default function SiteLayout({ pageTitle, children }) {
             </ul>
           </nav>
           <div className="header-actions">
+            {isStaffRoute && staffCart.visible && (
+              <button
+                className="cart-toggle"
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("lightform:staff-cart-open"))}
+              >
+                Cart <span>{staffCart.count}</span>
+              </button>
+            )}
             {!isStaffRoute && <HeaderCartButton />}
             <button
               className="nav-toggle"
