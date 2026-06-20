@@ -808,7 +808,6 @@ export async function setInventoryOnHand(config, input) {
       name: "on_hand",
       reason: "correction",
       referenceDocumentUri: `staff-ims://inventory-set/${crypto.randomUUID()}`,
-      ignoreCompareQuantity: true,
       quantities: [
         {
           inventoryItemId: input.inventoryItemId,

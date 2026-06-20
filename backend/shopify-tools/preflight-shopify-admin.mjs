@@ -39,6 +39,11 @@ const PREFLIGHT_QUERY = `
         name
       }
     }
+    inventoryQuantityInput: __type(name: "InventoryQuantityInput") {
+      inputFields {
+        name
+      }
+    }
     location: node(id: $locationId) {
       __typename
       ... on Location {
@@ -88,7 +93,8 @@ try {
   assertHasFields("ProductCreateInput", data.productCreateInput?.inputFields, ["title", "handle", "descriptionHtml", "vendor", "productType", "tags", "status"]);
   assertHasFields("ProductUpdateInput", data.productUpdateInput?.inputFields, ["id", "title", "handle", "descriptionHtml", "vendor", "productType", "tags", "status"]);
   assertHasFields("ProductVariantsBulkInput", data.productVariantsBulkInput?.inputFields, ["id", "price", "compareAtPrice", "barcode", "inventoryItem"]);
-  assertHasFields("InventorySetQuantitiesInput", data.inventorySetQuantitiesInput?.inputFields, ["name", "reason", "referenceDocumentUri", "ignoreCompareQuantity", "quantities"]);
+  assertHasFields("InventorySetQuantitiesInput", data.inventorySetQuantitiesInput?.inputFields, ["name", "reason", "referenceDocumentUri", "quantities"]);
+  assertHasFields("InventoryQuantityInput", data.inventoryQuantityInput?.inputFields, ["inventoryItemId", "locationId", "quantity"]);
 
   if (data.location?.__typename !== "Location") throw new Error("SHOPIFY_LOCATION_ID did not resolve to a Location.");
   if (data.location?.isActive === false) throw new Error("SHOPIFY_LOCATION_ID resolves to an inactive Location.");

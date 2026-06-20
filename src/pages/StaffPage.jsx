@@ -589,14 +589,13 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
         {variants.map((variant) => {
           const draft = productDraftFromVariant(variant);
           const stockValue = stockDrafts[variant.id] ?? draft.onHand;
-          const source = variant.catalogProduct?.source || "shopify";
           return (
             <article className="staff-result" key={variant.id}>
               <div>
                 <strong>{variant.product?.title || "Product"}</strong>
                 <span>{variant.title === "Default Title" ? variant.sku || "Default" : variant.title}</span>
                 <small>
-                  {source} · {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
+                  {variant.sku || "No SKU"} · Available {variant.inventory?.available ?? 0} · {moneyLabel(variant.price)}
                 </small>
               </div>
               <div className="staff-result-actions">

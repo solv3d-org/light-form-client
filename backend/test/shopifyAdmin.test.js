@@ -137,6 +137,7 @@ test("Shopify product create sends product, variant, and inventory mutations", a
 
     assert.equal(body.variables.input.quantities[0].quantity, 7);
     assert.equal(body.variables.input.quantities[0].locationId, "gid://shopify/Location/9");
+    assert.equal(body.variables.input.ignoreCompareQuantity, undefined);
     assert.match(body.variables.idempotencyKey, /^[0-9a-f-]{36}$/);
     assert.match(body.variables.input.referenceDocumentUri, /^staff-ims:\/\/inventory-set\//);
     assert.match(body.query, /@idempotent/);
