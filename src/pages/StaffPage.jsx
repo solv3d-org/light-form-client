@@ -67,6 +67,34 @@ function moneyLabel(value) {
   return new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD" }).format(amount);
 }
 
+function toMoneyNumber(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function readReceiptFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, type: file.type, size: file.size, dataUrl: reader.result });
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function lineDiscount(item) {
+  const price = toMoneyNumber(item.price);
+  const unitPrice = item.unitPrice === "" ? price : toMoneyNumber(item.unitPrice);
+  const baseDiscount = Math.max(0, price - unitPrice);
+  const manualValue = toMoneyNumber(item.discountValue);
+  const manualDiscount = item.discountType === "percentage" ? unitPrice * (manualValue / 100) : manualValue;
+  return Math.min(price, baseDiscount + Math.max(0, manualDiscount));
+}
+
+function lineTotal(item) {
+  const price = toMoneyNumber(item.price);
+  return Math.max(0, price - lineDiscount(item)) * item.quantity;
+}
+
 function hasStaffPermission(staff, permission) {
   return (staff?.effectivePermissions || []).includes(permission);
 }
@@ -832,17 +860,21 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
   );
 }
 
-function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
+function StaffCart({ staff, cart, onQuantity, onRemove, onItemChange, onDraftCreated }) {
   const [email, setEmail] = useState("");
   const [fulfillment, setFulfillment] = useState({ type: "pickup", deliveryDate: "", dateTba: false });
   const [shippingAddress, setShippingAddress] = useState(EMPTY_ADDRESS);
   const [internal, setInternal] = useState(EMPTY_INTERNAL);
+  const [receiptFiles, setReceiptFiles] = useState([]);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const canWriteCost = hasStaffPermission(staff, "cost:write");
+  const canApplyDiscount = hasStaffPermission(staff, "discount:apply");
+  const canOverridePrice = hasStaffPermission(staff, "price:override");
+  const canDescribeLine = hasStaffPermission(staff, "line:describe");
 
   const total = useMemo(
-    () => cart.reduce((sum, item) => sum + Number(item.price || 0) * item.quantity, 0),
+    () => cart.reduce((sum, item) => sum + lineTotal(item), 0),
     [cart]
   );
 
@@ -860,9 +892,28 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
     setError("");
 
     try {
+      const paymentEvidence = await Promise.all(receiptFiles.map(readReceiptFile));
       const payload = await createStaffDraftOrder({
         email,
-        lineItems: cart.map((item) => ({ variantId: item.variantId, title: item.title, price: item.price, quantity: item.quantity })),
+        lineItems: cart.map((item) => {
+          const discountAmount = lineDiscount(item);
+          const price = toMoneyNumber(item.price);
+          const unitPrice = item.unitPrice === "" ? price : toMoneyNumber(item.unitPrice);
+          const finalUnitPrice = Math.max(0, price - discountAmount);
+          const hasPriceOverride = item.unitPrice !== "" && unitPrice !== price;
+          return {
+            variantId: item.variantId,
+            title: item.title,
+            sku: item.sku,
+            price: item.price,
+            quantity: item.quantity,
+            description: item.description,
+            ...(hasPriceOverride ? { priceOverride: finalUnitPrice } : {}),
+            ...(!hasPriceOverride && discountAmount > 0
+              ? { appliedDiscount: { valueType: "fixed_amount", value: discountAmount, title: "In-store adjustment", description: "Staff cart adjustment" } }
+              : {})
+          };
+        }),
         fulfillment,
         shippingAddress: fulfillment.type === "delivery" ? shippingAddress : undefined,
         internal: {
@@ -870,6 +921,7 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
           stockroomBin: internal.stockroomBin,
           opsNotes: internal.opsNotes,
           approvalRequired: internal.approvalRequired,
+          paymentEvidence,
           ...(canWriteCost ? { costPrice: internal.costPrice, grossMargin: internal.grossMargin } : {})
         }
       });
@@ -877,6 +929,7 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
       setFulfillment({ type: "pickup", deliveryDate: "", dateTba: false });
       setShippingAddress(EMPTY_ADDRESS);
       setInternal(EMPTY_INTERNAL);
+      setReceiptFiles([]);
       onDraftCreated(payload.order);
     } catch (nextError) {
       setError(nextError.message);
@@ -906,9 +959,47 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
           ) : (
             cart.map((item) => (
               <article className="staff-cart-line" key={item.variantId}>
-                <div>
+                <div className="staff-cart-main">
                   <strong>{item.title}</strong>
-                  <span>{item.sku || "No SKU"} · {moneyLabel(item.price)}</span>
+                  <span>{item.sku || "No SKU"} · {moneyLabel(item.price)} · line {moneyLabel(lineTotal(item))}</span>
+                  <div className="staff-line-controls">
+                    {canOverridePrice && (
+                      <StaffField label="Unit price">
+                        <input
+                          type="number"
+                          min="0"
+                          max={item.price}
+                          step="0.01"
+                          value={item.unitPrice}
+                          onChange={(event) => onItemChange(item.variantId, { unitPrice: event.target.value })}
+                        />
+                      </StaffField>
+                    )}
+                    {canApplyDiscount && (
+                      <>
+                        <StaffField label="Discount type">
+                          <select value={item.discountType} onChange={(event) => onItemChange(item.variantId, { discountType: event.target.value })}>
+                            <option value="fixed_amount">Fixed</option>
+                            <option value="percentage">Percent</option>
+                          </select>
+                        </StaffField>
+                        <StaffField label="Discount">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.discountValue}
+                            onChange={(event) => onItemChange(item.variantId, { discountValue: event.target.value })}
+                          />
+                        </StaffField>
+                      </>
+                    )}
+                    {canDescribeLine && (
+                      <StaffField label="Line description">
+                        <textarea value={item.description} onChange={(event) => onItemChange(item.variantId, { description: event.target.value })} />
+                      </StaffField>
+                    )}
+                  </div>
                 </div>
                 <div className="staff-qty">
                   <button type="button" onClick={() => onQuantity(item.variantId, item.quantity - 1)}>-</button>
@@ -992,6 +1083,9 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onDraftCreated }) {
           )}
           <StaffField label="Ops notes">
             <textarea value={internal.opsNotes} onChange={(event) => setInternalValue("opsNotes", event.target.value)} />
+          </StaffField>
+          <StaffField label="Receipt evidence">
+            <input type="file" accept="image/*" multiple onChange={(event) => setReceiptFiles(Array.from(event.target.files || []))} />
           </StaffField>
         </div>
 

@@ -66,6 +66,18 @@ function readJsonLines(filePath, limit) {
 }
 
 function createOrderRecordData({ draftOrder, input, actor }) {
+  const lineItems = Array.isArray(input.lineItems)
+    ? input.lineItems.map((item) => ({
+        variantId: item.variantId || "",
+        title: item.title || "",
+        sku: item.sku || "",
+        quantity: item.quantity || 1,
+        price: item.price || "",
+        priceOverride: item.priceOverride || item.unitPrice || "",
+        description: item.description || "",
+        appliedDiscount: item.appliedDiscount || null
+      }))
+    : [];
   return {
     id: crypto.randomUUID(),
     status: "pending",
@@ -78,7 +90,10 @@ function createOrderRecordData({ draftOrder, input, actor }) {
       customerId: input.customerId || ""
     },
     fulfillment: input.fulfillment || { type: "pickup" },
-    internal: input.internal || {},
+    internal: {
+      ...(input.internal || {}),
+      lineItems
+    },
     hiddenFromCustomer: true,
     createdBy: publicUser(actor),
     createdAt: nowIso(),
