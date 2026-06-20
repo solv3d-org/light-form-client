@@ -185,6 +185,14 @@ const routes = [
     rolePermissions: rolePermissionMap()
   })),
 
+  route("GET", "/api/storefront/curation", { auth: false }, async () => ({
+    curation: await store.getStorefrontCuration()
+  })),
+
+  route("PATCH", "/api/storefront/curation", { permission: "storefront:curate" }, async ({ body, user }) => ({
+    curation: await store.saveStorefrontCuration(body, user)
+  })),
+
   route("POST", "/api/staff/users", { permission: "user:manage" }, async ({ body, user }) => {
     try {
       return { staff: await store.createUser(body, user) };
@@ -223,10 +231,6 @@ const routes = [
       query: url.searchParams.get("q") || "",
       first: url.searchParams.get("first") || 25
     })
-  })),
-
-  route("POST", "/api/products", { permission: "inventory:adjust" }, async ({ body }) => ({
-    product: await catalogProvider.createProduct(body)
   })),
 
   route("PATCH", "/api/products/:id", { permission: "inventory:adjust" }, async ({ params, body }) => ({

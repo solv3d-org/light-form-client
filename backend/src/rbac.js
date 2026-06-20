@@ -1,4 +1,4 @@
-export const ROLES = ["viewer", "operator", "manager", "admin"];
+export const ROLES = ["admin", "pm", "staff"];
 
 export const PERMISSIONS = Object.freeze([
   { key: "inventory:read", label: "Read inventory" },
@@ -13,6 +13,7 @@ export const PERMISSIONS = Object.freeze([
   { key: "price:override", label: "Override line prices" },
   { key: "line:describe", label: "Add line descriptions" },
   { key: "cost:write", label: "Write cost fields" },
+  { key: "storefront:curate", label: "Curate storefront" },
   { key: "user:manage", label: "Manage staff" },
   { key: "audit:read", label: "Read audit log" },
   { key: "sync:manage", label: "Manage Shopify sync" }
@@ -21,24 +22,22 @@ export const PERMISSIONS = Object.freeze([
 const PERMISSION_KEYS = new Set(PERMISSIONS.map((permission) => permission.key));
 
 export const ROLE_PERMISSIONS = Object.freeze({
-  viewer: ["inventory:read", "order:read"],
-  operator: ["inventory:read", "order:read", "order:create", "order:update", "invoice:send", "order:complete"],
-  manager: [
-    "inventory:read",
-    "inventory:adjust",
-    "order:read",
-    "order:create",
-    "order:update",
-    "invoice:send",
-    "order:complete",
-    "order:cancel",
-    "discount:apply"
-  ],
-  admin: ["*"]
+  admin: ["*"],
+  pm: PERMISSIONS.map((permission) => permission.key).filter(
+    (permission) => !["sync:manage", "user:manage", "audit:read"].includes(permission)
+  ),
+  staff: ["inventory:read", "order:read", "order:create", "order:update", "invoice:send", "order:complete"]
+});
+
+const ROLE_ALIASES = Object.freeze({
+  manager: "pm",
+  operator: "staff"
 });
 
 export function normalizeRole(role) {
-  return ROLES.includes(role) ? role : "";
+  const value = String(role || "");
+  const normalized = ROLE_ALIASES[value] || value;
+  return ROLES.includes(normalized) ? normalized : "";
 }
 
 export function normalizePermissionList(value) {
@@ -57,12 +56,12 @@ export function normalizePermissionOverrides(value) {
 }
 
 export function getRolePermissions(role) {
-  const permissions = ROLE_PERMISSIONS[role] || [];
+  const permissions = ROLE_PERMISSIONS[normalizeRole(role)] || [];
   return permissions.includes("*") ? PERMISSIONS.map((item) => item.key) : permissions;
 }
 
 export function getEffectivePermissions(subject) {
-  const role = typeof subject === "string" ? subject : subject?.role;
+  const role = normalizeRole(typeof subject === "string" ? subject : subject?.role);
   const base = new Set(getRolePermissions(role));
   if (ROLE_PERMISSIONS[role]?.includes("*")) {
     for (const permission of PERMISSIONS) base.add(permission.key);
@@ -75,7 +74,7 @@ export function getEffectivePermissions(subject) {
 }
 
 export function hasPermission(subject, permission) {
-  const role = typeof subject === "string" ? subject : subject?.role;
+  const role = normalizeRole(typeof subject === "string" ? subject : subject?.role);
   if (ROLE_PERMISSIONS[role]?.includes("*") && !subject?.permissionOverrides?.deny?.includes(permission)) return true;
   return getEffectivePermissions(subject).includes(permission);
 }

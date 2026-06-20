@@ -27,6 +27,7 @@ export function links() {
 export async function loader({ context, request }) {
   const { cart, env, shopifyConfig, shopifyConfigured, staffApiBaseUrl, storefront } = context;
   const isHealthRoute = new URL(request.url).pathname === "/health";
+  const analyticsConfigured = shopifyConfigured && !isHealthRoute && Boolean(env.PUBLIC_STOREFRONT_ID);
   const cartData = shopifyConfigured && !isHealthRoute ? await cart.get() : null;
 
   return {
@@ -34,13 +35,13 @@ export async function loader({ context, request }) {
     shopifyConfigured,
     staffApiBaseUrl,
     storeDomain: shopifyConfig.storeDomain,
-    shop: shopifyConfigured && !isHealthRoute
+    shop: analyticsConfigured
       ? getShopAnalytics({
           storefront,
           publicStorefrontId: env.PUBLIC_STOREFRONT_ID
         })
       : null,
-    consent: shopifyConfigured && !isHealthRoute
+    consent: analyticsConfigured
       ? {
           checkoutDomain: shopifyConfig.checkoutDomain,
           storefrontAccessToken: shopifyConfig.storefrontAccessToken,

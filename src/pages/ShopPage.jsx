@@ -70,6 +70,7 @@ function PaginationControls({ PreviousLink, NextLink, hasPreviousPage, hasNextPa
 export default function ShopPage({ products, productConnection, availableFilters = [], catalogMetadata }) {
   const filters = catalogMetadata?.filters || {};
   const connection = productConnection || { nodes: products, pageInfo: {} };
+  const isCurated = catalogMetadata?.mode === "storefront-curated";
 
   return (
     <main>
@@ -84,16 +85,22 @@ export default function ShopPage({ products, productConnection, availableFilters
       <section className="section">
         <div className="site-shell">
           <form className="shop-filter-bar" method="get">
-            <label>
-              <span>Sort</span>
-              <select name="sort" defaultValue={filters.sort || "newest"}>
-                {sortOptions.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+            <label className="shop-search-field">
+              <span>Search</span>
+              <input name="q" type="search" defaultValue={filters.search || ""} placeholder="Product, SKU, style" />
             </label>
+            {!isCurated && (
+              <label>
+                <span>Sort</span>
+                <select name="sort" defaultValue={filters.sort || "newest"}>
+                  {sortOptions.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <FacetControls availableFilters={availableFilters} filters={filters} />
             <div className="shop-filter-actions">
               <button type="submit">Apply</button>

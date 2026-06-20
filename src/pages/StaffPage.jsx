@@ -4,12 +4,12 @@ import { useLocation, useNavigate } from "react-router";
 import {
   archiveStaffProduct,
   completeStaffOrder,
-  createStaffProduct,
   createStaffUser,
   createStaffDraftOrder,
   getStaffOrder,
   getStaffToken,
   getStaffMe,
+  getStorefrontCuration,
   listStaffAudit,
   listStaffPermissionConfig,
   listStaffUsers,
@@ -17,18 +17,20 @@ import {
   saveStaffToken,
   searchStaffInventory,
   sendStaffInvoice,
+  saveStorefrontCuration,
   setStaffInventoryOnHand,
   staffLogin,
   updateStaffProduct,
   updateStaffUser
 } from "../lib/staffApi";
 
-const STAFF_ROLES = ["viewer", "operator", "manager", "admin"];
+const STAFF_ROLES = ["admin", "pm", "staff"];
 const EMPTY_PERMISSION_OVERRIDES = { allow: [], deny: [] };
 const FALLBACK_PERMISSION_CONFIG = { roles: STAFF_ROLES, permissions: [], rolePermissions: {} };
 const STAFF_TABS = [
   { id: "orders", permissions: ["order:read"] },
   { id: "checkout", permissions: ["inventory:read", "order:create"] },
+  { id: "storefront-curation", permissions: ["storefront:curate"] },
   { id: "staff-activity", permissions: ["audit:read"] },
   { id: "access-management", permissions: ["user:manage"] }
 ];
@@ -69,16 +71,6 @@ const PAYMENT_METHODS = [
   { value: "bank_transfer", label: "Bank transfer" },
   { value: "custom", label: "Custom" }
 ];
-
-const EMPTY_PRODUCT_FORM = {
-  title: "",
-  handle: "",
-  vendor: "",
-  productType: "",
-  sku: "",
-  price: "",
-  onHand: "0"
-};
 
 function moneyLabel(value) {
   const amount = Number(value);
@@ -322,7 +314,7 @@ function StaffUserRow({ user, permissionConfig, status, onSave, onToggleActive }
 function StaffUsersPanel() {
   const [users, setUsers] = useState([]);
   const [permissionConfig, setPermissionConfig] = useState(FALLBACK_PERMISSION_CONFIG);
-  const [form, setForm] = useState({ email: "", name: "", role: "operator", password: "" });
+  const [form, setForm] = useState({ email: "", name: "", role: "staff", password: "" });
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
@@ -360,7 +352,7 @@ function StaffUsersPanel() {
 
     try {
       await createStaffUser(form);
-      setForm({ email: "", name: "", role: "operator", password: "" });
+      setForm({ email: "", name: "", role: "staff", password: "" });
       await loadUsers();
     } catch (nextError) {
       setError(nextError.message);
@@ -549,7 +541,6 @@ function InventoryDetailPanel({ variant, onClose }) {
 function InventorySearch({ canAdd, canManage, onAdd }) {
   const [query, setQuery] = useState("");
   const [variants, setVariants] = useState([]);
-  const [productForm, setProductForm] = useState(EMPTY_PRODUCT_FORM);
   const [editing, setEditing] = useState(null);
   const [detailVariant, setDetailVariant] = useState(null);
   const [stockDrafts, setStockDrafts] = useState({});
@@ -601,10 +592,6 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
     await loadSearch();
   };
 
-  const setProductValue = (key, value) => {
-    setProductForm((current) => ({ ...current, [key]: value }));
-  };
-
   const setEditingValue = (key, value) => {
     setEditing((current) => ({ ...current, [key]: value }));
   };
@@ -617,20 +604,6 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
 
   const toggleAllVisible = () => {
     setSelectedVariantIds(allVisibleSelected ? [] : variants.map((variant) => variant.id));
-  };
-
-  const handleCreateProduct = async (event) => {
-    event.preventDefault();
-    setStatus("saving");
-    setError("");
-    try {
-      await createStaffProduct(productForm);
-      setProductForm(EMPTY_PRODUCT_FORM);
-      await loadSearch();
-    } catch (nextError) {
-      setError(nextError.message);
-      setStatus("idle");
-    }
   };
 
   const handleSaveProduct = async (event) => {
@@ -754,34 +727,6 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
         <input value={query} placeholder="Search SKU, title, barcode" onChange={(event) => setQuery(event.target.value)} />
         <span className="staff-search-status">{status === "loading" ? "Searching" : "Live"}</span>
       </form>
-      {canManage && (
-        <form className="staff-product-form" onSubmit={handleCreateProduct}>
-          <StaffField label="Title">
-            <input value={productForm.title} onChange={(event) => setProductValue("title", event.target.value)} required />
-          </StaffField>
-          <StaffField label="Handle">
-            <input value={productForm.handle} onChange={(event) => setProductValue("handle", event.target.value)} />
-          </StaffField>
-          <StaffField label="SKU">
-            <input value={productForm.sku} onChange={(event) => setProductValue("sku", event.target.value)} />
-          </StaffField>
-          <StaffField label="Vendor">
-            <input value={productForm.vendor} onChange={(event) => setProductValue("vendor", event.target.value)} />
-          </StaffField>
-          <StaffField label="Type">
-            <input value={productForm.productType} onChange={(event) => setProductValue("productType", event.target.value)} />
-          </StaffField>
-          <StaffField label="Price">
-            <input value={productForm.price} onChange={(event) => setProductValue("price", event.target.value)} />
-          </StaffField>
-          <StaffField label="On hand">
-            <input type="number" min="0" value={productForm.onHand} onChange={(event) => setProductValue("onHand", event.target.value)} />
-          </StaffField>
-          <button className="button-secondary" type="submit" disabled={status === "saving"}>
-            Create product
-          </button>
-        </form>
-      )}
       {error && <p className="staff-error">{error}</p>}
       {variants.length > 0 && (
         <div className="staff-bulk-actions">
@@ -895,6 +840,207 @@ function InventorySearch({ canAdd, canManage, onAdd }) {
           </button>
         </form>
       )}
+    </section>
+  );
+}
+
+function productCurationItem(variant) {
+  return {
+    productId: variant.product?.id || "",
+    handle: variant.product?.handle || "",
+    title: variant.product?.title || variant.title || "Product",
+    sku: variant.sku || "",
+    imageUrl: variant.image?.url || ""
+  };
+}
+
+function CurationCard({ title, emptyText, items, onAdd, onMove, onRemove }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [searchStatus, setSearchStatus] = useState("idle");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let canceled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      if (!query.trim()) {
+        setResults([]);
+        return;
+      }
+      setSearchStatus("searching");
+      setError("");
+      try {
+        const payload = await searchStaffInventory(query, { signal: controller.signal });
+        if (!canceled) setResults(payload.variants || []);
+      } catch (nextError) {
+        if (!canceled && nextError.name !== "AbortError") setError(nextError.message);
+      } finally {
+        if (!canceled) setSearchStatus("idle");
+      }
+    }, 250);
+    return () => {
+      canceled = true;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [query]);
+
+  return (
+    <section className="staff-curation-card">
+      <div className="staff-panel-head">
+        <div>
+          <p className="section-kicker">Storefront</p>
+          <h3>{title}</h3>
+        </div>
+        <span className="staff-search-status">{searchStatus === "searching" ? "Searching" : `${items.length} shown`}</span>
+      </div>
+      <form className="staff-search" onSubmit={(event) => event.preventDefault()}>
+        <input value={query} placeholder="Search Shopify products" onChange={(event) => setQuery(event.target.value)} />
+      </form>
+      {error && <p className="staff-error">{error}</p>}
+      {results.length > 0 && (
+        <div className="staff-result-list staff-curation-results">
+          {results.map((variant) => {
+            const item = productCurationItem(variant);
+            const selected = items.some((current) => current.productId === item.productId);
+            return (
+              <article className="staff-result" key={variant.id}>
+                <button className="staff-result-summary" type="button" onClick={() => onAdd(variant)}>
+                  <strong>{item.title}</strong>
+                  <span>{variant.title === "Default Title" ? item.sku || "Default" : variant.title}</span>
+                  <small>{item.sku || "No SKU"} · {moneyLabel(variant.price)}</small>
+                </button>
+                <div className="staff-result-actions">
+                  <button className="button-inline" type="button" disabled={selected} onClick={() => onAdd(variant)}>
+                    {selected ? "Added" : "Show"}
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+      <div className="staff-curation-list">
+        {items.map((item, index) => (
+          <article className="staff-order" key={item.productId}>
+            <div className="staff-order-summary">
+              <strong>{String(index + 1).padStart(2, "0")} · {item.title}</strong>
+              <span>{item.sku || item.handle || item.productId}</span>
+            </div>
+            <div className="staff-order-actions">
+              <button className="button-inline" type="button" disabled={index === 0} onClick={() => onMove(index, -1)}>
+                Up
+              </button>
+              <button className="button-inline" type="button" disabled={index === items.length - 1} onClick={() => onMove(index, 1)}>
+                Down
+              </button>
+              <button className="button-inline" type="button" onClick={() => onRemove(item.productId)}>
+                Remove
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+      {!items.length && <p className="staff-muted">{emptyText}</p>}
+    </section>
+  );
+}
+
+function StorefrontCurationPanel() {
+  const [homeItems, setHomeItems] = useState([]);
+  const [shopItems, setShopItems] = useState([]);
+  const [status, setStatus] = useState("loading");
+  const [error, setError] = useState("");
+
+  const loadCuration = async () => {
+    setStatus("loading");
+    setError("");
+    try {
+      const payload = await getStorefrontCuration();
+      setHomeItems(payload.curation?.homeItems || payload.curation?.items || []);
+      setShopItems(payload.curation?.shopItems || payload.curation?.items || []);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setStatus("idle");
+    }
+  };
+
+  useEffect(() => {
+    loadCuration();
+  }, []);
+
+  const persistCuration = async (nextHomeItems, nextShopItems) => {
+    setStatus("saving");
+    setError("");
+    try {
+      const payload = await saveStorefrontCuration({ homeItems: nextHomeItems, shopItems: nextShopItems });
+      setHomeItems(payload.curation?.homeItems || []);
+      setShopItems(payload.curation?.shopItems || []);
+    } catch (nextError) {
+      setError(nextError.message);
+    } finally {
+      setStatus("idle");
+    }
+  };
+
+  const updateItems = (kind, updater) => {
+    const nextHomeItems = kind === "home" ? updater(homeItems) : homeItems;
+    const nextShopItems = kind === "shop" ? updater(shopItems) : shopItems;
+    setHomeItems(nextHomeItems);
+    setShopItems(nextShopItems);
+    persistCuration(nextHomeItems, nextShopItems);
+  };
+
+  const addItem = (kind, variant) => {
+    const item = productCurationItem(variant);
+    if (!item.productId) return;
+    updateItems(kind, (current) => (current.some((existing) => existing.productId === item.productId) ? current : [...current, item]));
+  };
+
+  const moveItem = (kind, index, direction) => {
+    updateItems(kind, (current) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= current.length) return current;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return next;
+    });
+  };
+
+  const removeItem = (kind, productId) => {
+    updateItems(kind, (current) => current.filter((item) => item.productId !== productId));
+  };
+
+  return (
+    <section className="staff-panel staff-curation">
+      <div className="staff-panel-head">
+        <div>
+          <p className="section-kicker">Storefront</p>
+          <h2>Client catalog curation</h2>
+        </div>
+        <span className="staff-search-status">{status === "saving" ? "Saving" : status === "loading" ? "Loading" : "Saved"}</span>
+      </div>
+      {error && <p className="staff-error">{error}</p>}
+      <div className="staff-curation-grid">
+        <CurationCard
+          title="Home carousel"
+          emptyText="No carousel products selected. The home carousel will use the default Shopify catalog."
+          items={homeItems}
+          onAdd={(variant) => addItem("home", variant)}
+          onMove={(index, direction) => moveItem("home", index, direction)}
+          onRemove={(productId) => removeItem("home", productId)}
+        />
+        <CurationCard
+          title="Shop grid"
+          emptyText="No shop products selected. The shop page will use the default Shopify catalog."
+          items={shopItems}
+          onAdd={(variant) => addItem("shop", variant)}
+          onMove={(index, direction) => moveItem("shop", index, direction)}
+          onRemove={(productId) => removeItem("shop", productId)}
+        />
+      </div>
     </section>
   );
 }
@@ -1627,17 +1773,12 @@ export default function StaffPage() {
   const canAdjustInventory = hasStaffPermission(staff, "inventory:adjust");
   const canManageStaff = hasStaffPermission(staff, "user:manage");
   const canReadAudit = hasStaffPermission(staff, "audit:read");
+  const canCurateStorefront = hasStaffPermission(staff, "storefront:curate");
   const activeTab = (location.hash || `#${visibleTabs[0]?.id || ""}`).slice(1);
 
   return (
     <main className="staff-page">
       <section className="staff-workspace site-shell">
-        <div className="staff-hero">
-          <div>
-            <p className="page-kicker">Staff IMS</p>
-            <h1>Internal order desk</h1>
-          </div>
-        </div>
         {activeTab === "orders" && canReadOrders && (
           <div className="staff-layout">
             <div className="staff-main-column">
@@ -1649,6 +1790,13 @@ export default function StaffPage() {
           <div className="staff-layout">
             <div className="staff-main-column">
               {canReadInventory && <InventorySearch canAdd={canCreateOrders} canManage={canAdjustInventory} onAdd={addVariant} />}
+            </div>
+          </div>
+        )}
+        {activeTab === "storefront-curation" && canCurateStorefront && (
+          <div className="staff-layout">
+            <div className="staff-main-column">
+              <StorefrontCurationPanel />
             </div>
           </div>
         )}

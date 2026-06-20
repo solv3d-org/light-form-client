@@ -89,16 +89,20 @@ export function searchStaffInventory(query, options = {}) {
   return staffRequest(`/api/inventory/search?${params.toString()}`, options);
 }
 
+export function getStorefrontCuration() {
+  return staffRequest("/api/storefront/curation");
+}
+
+export function saveStorefrontCuration(curation) {
+  return staffRequest("/api/storefront/curation", {
+    method: "PATCH",
+    body: curation
+  });
+}
+
 export function searchStaffProducts(query) {
   const params = new URLSearchParams({ q: query, first: "25" });
   return staffRequest(`/api/products/search?${params.toString()}`);
-}
-
-export function createStaffProduct(input) {
-  return staffRequest("/api/products", {
-    method: "POST",
-    body: input
-  });
 }
 
 export function updateStaffProduct(productId, input) {

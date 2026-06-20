@@ -25,10 +25,9 @@ Run `npm run shopify:bulk-sync -- start`, then `status`, then `import` to seed t
 
 | Role | Access |
 | --- | --- |
-| `viewer` | Read inventory and orders |
-| `operator` | Staff cart, draft order, invoice, complete order |
-| `manager` | Operator + discounts, cancel orders, reserved inventory-adjust permission |
-| `admin` | All permissions, staff users, audit log, cost/internal fields |
+| `admin` | All permissions |
+| `pm` | All permissions except Manage Shopify sync, Manage staff, and Read audit log |
+| `staff` | Staff cart, draft order, invoice, complete order |
 
 Admins can add per-user permission overrides from `/staff`. Overrides are stored as `permissionOverrides.allow` and `permissionOverrides.deny` in `data/staff-users.json`.
 
@@ -44,11 +43,12 @@ GET /api/staff/users
 GET /api/staff/permissions
 POST /api/staff/users
 PATCH /api/staff/users/:id
+GET /api/storefront/curation
+PATCH /api/storefront/curation # { homeItems: [...], shopItems: [...] }
 GET /api/audit?limit=100
 GET /api/inventory/search?q=sku-or-title
 POST /api/inventory/set-on-hand
 GET /api/products/search?q=sku-or-title
-POST /api/products
 PATCH /api/products/:id
 DELETE /api/products/:id
 POST /api/sync/shopify/bulk/start

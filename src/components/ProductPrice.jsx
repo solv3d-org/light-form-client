@@ -10,14 +10,14 @@ export default function ProductPrice({ product, price, compareAtPrice }) {
 
   if (activePrice) {
     return (
-      <p className="product-price">
+      <div className="product-price">
         <Money data={activePrice} />
         {activeCompareAt && Number(activeCompareAt.amount) > Number(activePrice.amount) && (
           <s>
             <Money data={activeCompareAt} />
           </s>
         )}
-      </p>
+      </div>
     );
   }
 
@@ -25,7 +25,7 @@ export default function ProductPrice({ product, price, compareAtPrice }) {
   const max = product?.priceRange?.maxVariantPrice;
   if (min && max) {
     return (
-      <p className="product-price">
+      <div className="product-price">
         <Money data={min} />
         {!sameMoney(min, max) && (
           <>
@@ -33,9 +33,9 @@ export default function ProductPrice({ product, price, compareAtPrice }) {
             <Money data={max} />
           </>
         )}
-      </p>
+      </div>
     );
   }
 
-  return <p className="product-price">{product?.priceLabel || "Price on request"}</p>;
+  return <div className="product-price">{product?.priceLabel || "Price on request"}</div>;
 }

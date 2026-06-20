@@ -31,16 +31,57 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+function normalizeCuration(input = {}) {
+  const normalizeItems = (value) => {
+    const seen = new Set();
+    return (Array.isArray(value) ? value : [])
+      .map((item) => ({
+        productId: String(item.productId || item.id || "").trim(),
+        handle: String(item.handle || "").trim(),
+        title: String(item.title || "").trim(),
+        sku: String(item.sku || "").trim(),
+        imageUrl: String(item.imageUrl || "").trim()
+      }))
+      .filter((item) => item.productId && !seen.has(item.productId) && seen.add(item.productId));
+  };
+  const legacyItems = normalizeItems(input.items);
+  const homeItems = (Array.isArray(input.homeItems) ? input.homeItems : legacyItems)
+    .map((item) => ({
+      productId: String(item.productId || item.id || "").trim(),
+      handle: String(item.handle || "").trim(),
+      title: String(item.title || "").trim(),
+      sku: String(item.sku || "").trim(),
+      imageUrl: String(item.imageUrl || "").trim()
+    }))
+    .filter(Boolean);
+  const shopItems = (Array.isArray(input.shopItems) ? input.shopItems : legacyItems)
+    .map((item) => ({
+      productId: String(item.productId || item.id || "").trim(),
+      handle: String(item.handle || "").trim(),
+      title: String(item.title || "").trim(),
+      sku: String(item.sku || "").trim(),
+      imageUrl: String(item.imageUrl || "").trim()
+    }))
+    .filter(Boolean);
+  return {
+    homeItems: normalizeItems(homeItems),
+    shopItems: normalizeItems(shopItems),
+    updatedAt: input.updatedAt || null,
+    updatedBy: input.updatedBy || null
+  };
+}
+
 function publicUser(user) {
   if (!user) return null;
   const permissionOverrides = normalizePermissionOverrides(user.permissionOverrides);
+  const role = normalizeRole(user.role);
   return {
     id: user.id,
     email: user.email,
     name: user.name,
-    role: user.role,
+    role,
     permissionOverrides,
-    effectivePermissions: getEffectivePermissions({ ...user, permissionOverrides }),
+    effectivePermissions: getEffectivePermissions({ ...user, role, permissionOverrides }),
     active: user.active,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
@@ -299,11 +340,12 @@ class JsonStaffStore {
     this.auditPath = path.join(dataDir, "staff-audit-log.jsonl");
     this.webhooksPath = path.join(dataDir, "shopify-webhook-events.jsonl");
     this.catalogCachePath = path.join(dataDir, "shopify-catalog-cache.json");
+    this.storefrontCurationPath = path.join(dataDir, "storefront-curation.json");
     mkdirSync(dataDir, { recursive: true });
   }
 
   storage() {
-    return { users: "json", orders: "json", audit: "jsonl", shopifyCatalogCache: "json", webhooks: "jsonl" };
+    return { users: "json", orders: "json", audit: "jsonl", shopifyCatalogCache: "json", storefrontCuration: "json", webhooks: "jsonl" };
   }
 
   async listUsers() {
@@ -540,6 +582,25 @@ class JsonStaffStore {
     return readJsonFile(this.catalogCachePath, []).length;
   }
 
+  async getStorefrontCuration() {
+    return normalizeCuration(readJsonFile(this.storefrontCurationPath, { items: [] }));
+  }
+
+  async saveStorefrontCuration(input, actor = null) {
+    const curation = normalizeCuration({
+      homeItems: input.homeItems,
+      shopItems: input.shopItems,
+      updatedAt: nowIso(),
+      updatedBy: publicUser(actor)
+    });
+    writeJsonFile(this.storefrontCurationPath, curation);
+    await this.appendAudit("storefront_curation.updated", actor, {
+      homeItemCount: curation.homeItems.length,
+      shopItemCount: curation.shopItems.length
+    });
+    return curation;
+  }
+
   async deleteShopifyCatalogProduct(productId) {
     const gid = String(productId || "");
     const numeric = gid.match(/(\d+)$/)?.[1] || gid;
@@ -591,7 +652,7 @@ class PgStaffStore {
   }
 
   storage() {
-    return { users: "postgres", orders: "postgres", audit: "postgres", shopifyCatalogCache: "postgres", webhooks: "postgres" };
+    return { users: "postgres", orders: "postgres", audit: "postgres", shopifyCatalogCache: "postgres", storefrontCuration: "postgres", webhooks: "postgres" };
   }
 
   async migrate() {
@@ -681,6 +742,13 @@ class PgStaffStore {
       CREATE INDEX IF NOT EXISTS shopify_catalog_cache_inventory_item_idx ON shopify_catalog_cache(inventory_item_id);
       CREATE INDEX IF NOT EXISTS shopify_catalog_cache_search_idx ON shopify_catalog_cache USING gin (
         to_tsvector('simple', title || ' ' || handle || ' ' || sku || ' ' || vendor || ' ' || product_type || ' ' || barcode)
+      );
+
+      CREATE TABLE IF NOT EXISTS storefront_curation (
+        id text PRIMARY KEY,
+        items jsonb NOT NULL DEFAULT '[]'::jsonb,
+        updated_by jsonb,
+        updated_at timestamptz NOT NULL
       );
     `);
   }
@@ -984,6 +1052,43 @@ class PgStaffStore {
   async shopifyCatalogCacheCount() {
     const result = await this.pool.query("SELECT count(*)::int AS count FROM shopify_catalog_cache");
     return result.rows[0]?.count || 0;
+  }
+
+  async getStorefrontCuration() {
+    const result = await this.pool.query("SELECT * FROM storefront_curation WHERE id = 'default' LIMIT 1");
+    return normalizeCuration({
+      homeItems: result.rows[0]?.items?.homeItems || result.rows[0]?.items || [],
+      shopItems: result.rows[0]?.items?.shopItems || result.rows[0]?.items || [],
+      updatedAt: toIso(result.rows[0]?.updated_at),
+      updatedBy: result.rows[0]?.updated_by || null
+    });
+  }
+
+  async saveStorefrontCuration(input, actor = null) {
+    const curation = normalizeCuration({
+      homeItems: input.homeItems,
+      shopItems: input.shopItems,
+      updatedAt: nowIso(),
+      updatedBy: publicUser(actor)
+    });
+    const result = await this.pool.query(
+      `INSERT INTO storefront_curation (id, items, updated_by, updated_at)
+       VALUES ('default', $1, $2, $3)
+       ON CONFLICT (id) DO UPDATE SET items = EXCLUDED.items, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+       RETURNING *`,
+      [JSON.stringify({ homeItems: curation.homeItems, shopItems: curation.shopItems }), JSON.stringify(curation.updatedBy), curation.updatedAt]
+    );
+    const saved = normalizeCuration({
+      homeItems: result.rows[0].items?.homeItems || result.rows[0].items || [],
+      shopItems: result.rows[0].items?.shopItems || result.rows[0].items || [],
+      updatedAt: toIso(result.rows[0].updated_at),
+      updatedBy: result.rows[0].updated_by
+    });
+    await this.appendAudit("storefront_curation.updated", actor, {
+      homeItemCount: saved.homeItems.length,
+      shopItemCount: saved.shopItems.length
+    });
+    return saved;
   }
 
   async deleteShopifyCatalogProduct(productId) {

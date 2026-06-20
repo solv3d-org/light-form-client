@@ -2,10 +2,25 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getEffectivePermissions, hasPermission, normalizePermissionOverrides } from "../src/rbac.js";
 
-test("operator can create and complete orders", () => {
+test("staff can create and complete orders", () => {
+  assert.equal(hasPermission("staff", "order:create"), true);
+  assert.equal(hasPermission("staff", "order:complete"), true);
+  assert.equal(hasPermission("staff", "user:manage"), false);
+});
+
+test("legacy operator maps to staff permissions", () => {
   assert.equal(hasPermission("operator", "order:create"), true);
-  assert.equal(hasPermission("operator", "order:complete"), true);
-  assert.equal(hasPermission("operator", "user:manage"), false);
+  assert.equal(hasPermission("operator", "discount:apply"), false);
+});
+
+test("pm has all non-admin-management permissions", () => {
+  assert.equal(hasPermission("pm", "inventory:adjust"), true);
+  assert.equal(hasPermission("pm", "price:override"), true);
+  assert.equal(hasPermission("pm", "cost:write"), true);
+  assert.equal(hasPermission("pm", "storefront:curate"), true);
+  assert.equal(hasPermission("pm", "sync:manage"), false);
+  assert.equal(hasPermission("pm", "user:manage"), false);
+  assert.equal(hasPermission("pm", "audit:read"), false);
 });
 
 test("admin has wildcard access", () => {
@@ -17,7 +32,7 @@ test("admin has wildcard access", () => {
 
 test("user permission overrides can allow or deny role permissions", () => {
   const user = {
-    role: "operator",
+    role: "staff",
     permissionOverrides: {
       allow: ["discount:apply"],
       deny: ["order:complete"]
@@ -36,9 +51,13 @@ test("permission overrides drop unknown permissions", () => {
 });
 
 test("effective permissions are sorted and include overrides", () => {
-  assert.deepEqual(getEffectivePermissions({ role: "viewer", permissionOverrides: { allow: ["invoice:send"] } }), [
+  assert.deepEqual(getEffectivePermissions({ role: "staff", permissionOverrides: { allow: ["discount:apply"] } }), [
+    "discount:apply",
     "inventory:read",
     "invoice:send",
-    "order:read"
+    "order:complete",
+    "order:create",
+    "order:read",
+    "order:update"
   ]);
 });
