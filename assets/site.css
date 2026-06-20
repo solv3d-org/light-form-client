@@ -131,12 +131,15 @@ button {
   justify-content: space-between;
   gap: 24px;
   min-height: 84px;
+  min-width: 0;
 }
 
 .brandmark {
   display: inline-flex;
   flex-direction: column;
   gap: 2px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .brandmark-word {
@@ -156,6 +159,7 @@ button {
 .site-nav ul {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 28px;
   list-style: none;
   margin: 0;
@@ -207,7 +211,39 @@ button {
 .header-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  min-width: 0;
   gap: 12px;
+}
+
+#staff-header-session {
+  display: contents;
+}
+
+.site-header:has(#staff-header-session) .header-shell {
+  gap: 18px;
+}
+
+.site-header:has(#staff-header-session) .brandmark {
+  flex-basis: 180px;
+  overflow: hidden;
+}
+
+.site-header:has(#staff-header-session) .site-nav {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.site-header:has(#staff-header-session) .site-nav ul {
+  justify-content: center;
+  gap: clamp(12px, 1.8vw, 26px);
+}
+
+.site-header:has(#staff-header-session) .site-nav a {
+  white-space: nowrap;
+  font-size: clamp(0.68rem, 0.85vw, 0.82rem);
+  letter-spacing: 0.12em;
 }
 
 .cart-toggle {
@@ -1436,11 +1472,7 @@ html[data-theme="warm"] .staff-cart-form select {
 }
 
 .staff-page .staff-session {
-  position: fixed;
-  top: 18px;
-  right: max(24px, calc((100vw - 1200px) / 2 + 24px));
-  z-index: 80;
-  min-height: 48px;
+  min-height: 0;
 }
 
 .staff-session strong {
@@ -1449,7 +1481,8 @@ html[data-theme="warm"] .staff-cart-form select {
 }
 
 .staff-session .button-secondary {
-  padding: 10px 18px;
+  padding: 9px 14px;
+  white-space: nowrap;
 }
 
 .staff-layout {
@@ -2023,6 +2056,33 @@ html[data-theme="warm"] .staff-cart-form select {
 
   .staff-cart-panel {
     position: static;
+  }
+}
+
+@media (max-width: 1180px) {
+  .site-header:has(#staff-header-session) .nav-toggle {
+    display: inline-flex;
+  }
+
+  .site-header:has(#staff-header-session) .site-nav {
+    position: absolute;
+    top: 84px;
+    left: 0;
+    right: 0;
+    padding: 0 24px 24px;
+    background: color-mix(in srgb, var(--bg) 96%, transparent);
+    border-bottom: 1px solid var(--line);
+    display: none;
+  }
+
+  .site-header:has(#staff-header-session) .site-nav.is-open {
+    display: block;
+  }
+
+  .site-header:has(#staff-header-session) .site-nav ul {
+    flex-direction: column;
+    align-items: start;
+    gap: 18px;
   }
 }
 
