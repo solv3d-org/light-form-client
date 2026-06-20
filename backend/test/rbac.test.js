@@ -11,6 +11,8 @@ test("operator can create and complete orders", () => {
 test("admin has wildcard access", () => {
   assert.equal(hasPermission("admin", "user:manage"), true);
   assert.equal(hasPermission("admin", "cost:write"), true);
+  assert.equal(hasPermission("admin", "price:override"), true);
+  assert.equal(hasPermission("admin", "line:describe"), true);
 });
 
 test("user permission overrides can allow or deny role permissions", () => {

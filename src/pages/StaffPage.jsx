@@ -892,6 +892,8 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onItemChange, onDraftCre
     setError("");
 
     try {
+      const invalidOverride = cart.find((item) => item.unitPrice !== "" && toMoneyNumber(item.unitPrice) > toMoneyNumber(item.price));
+      if (invalidOverride) throw new Error("Unit price cannot exceed catalog price.");
       const paymentEvidence = await Promise.all(receiptFiles.map(readReceiptFile));
       const payload = await createStaffDraftOrder({
         email,
@@ -942,10 +944,9 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onItemChange, onDraftCre
     <section className="staff-panel staff-cart-panel">
       <div className="staff-panel-head">
         <div>
-          <p className="section-kicker">Staff cart</p>
-          <h2>In-store checkout</h2>
+          <p className="section-kicker">Cart</p>
+          <h2>Selected pieces</h2>
         </div>
-        <strong>{moneyLabel(total)}</strong>
       </div>
 
       <form className="staff-cart-form" onSubmit={handleCreateDraft}>
@@ -1089,10 +1090,16 @@ function StaffCart({ staff, cart, onQuantity, onRemove, onItemChange, onDraftCre
           </StaffField>
         </div>
 
-        {error && <p className="staff-error">{error}</p>}
-        <button className="button-primary" type="submit" disabled={!cart.length || status === "loading"}>
-          {status === "loading" ? "Creating draft" : "Create draft order"}
-        </button>
+        <div className="staff-cart-footer">
+          <div className="cart-total">
+            <span>Subtotal</span>
+            <strong>{moneyLabel(total)}</strong>
+          </div>
+          {error && <p className="staff-error">{error}</p>}
+          <button className="button-primary cart-checkout" type="submit" disabled={!cart.length || status === "loading"}>
+            {status === "loading" ? "Creating draft" : "Create draft order"}
+          </button>
+        </div>
       </form>
     </section>
   );

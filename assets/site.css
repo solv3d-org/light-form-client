@@ -1304,6 +1304,11 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   font-size: 1.8rem;
 }
 
+.staff-cart-panel h2 {
+  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  line-height: 1.05;
+}
+
 .staff-login label,
 .staff-cart-form label,
 .staff-product-form label,
@@ -1319,6 +1324,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
 .staff-login input,
 .staff-cart-form input,
+.staff-cart-form select,
 .staff-cart-form textarea,
 .staff-search input,
 .staff-product-form input,
@@ -1653,6 +1659,54 @@ html[data-theme="warm"] .staff-user-controls select {
 .staff-cart-panel {
   position: sticky;
   top: 108px;
+  display: grid;
+  gap: 20px;
+  max-height: calc(100vh - 128px);
+  overflow: auto;
+  background: var(--bg-elevated);
+}
+
+.staff-cart-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.staff-line-controls {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.staff-line-controls label:last-child {
+  grid-column: 1 / -1;
+}
+
+.staff-line-controls textarea {
+  min-height: 58px;
+}
+
+.staff-cart-panel .staff-cart-form {
+  min-height: 0;
+}
+
+.staff-cart-panel .staff-cart-lines {
+  gap: 18px;
+}
+
+.staff-cart-panel .staff-cart-line {
+  align-items: start;
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+
+.staff-cart-footer {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
 }
 
 .staff-qty,
@@ -2024,6 +2078,7 @@ html[data-theme="warm"] .staff-user-controls select {
   .staff-user-controls,
   .staff-permission-grid,
   .staff-field-grid,
+  .staff-line-controls,
   .staff-product-form,
   .staff-product-edit {
     grid-template-columns: 1fr;

@@ -29,6 +29,55 @@ test("delivery draft orders require a date or Date TBA", async () => {
   );
 });
 
+test("draft orders map staff line edits to Shopify draft line items", async () => {
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async (url, options = {}) => {
+    assert.equal(String(url), "https://example.myshopify.com/admin/api/2026-04/draft_orders.json");
+    const body = JSON.parse(options.body);
+    const line = body.draft_order.line_items[0];
+    assert.equal(line.variant_id, 123);
+    assert.equal(line.quantity, 2);
+    assert.deepEqual(line.properties, [{ name: "Description", value: "warm white display unit" }]);
+    assert.deepEqual(line.applied_discount, {
+      title: "Staff price override",
+      description: "In-store price override",
+      value_type: "fixed_amount",
+      value: "15"
+    });
+    return new Response(JSON.stringify({ draft_order: { id: 1, name: "#D1" } }), { status: 200 });
+  };
+
+  try {
+    const draftOrder = await createDraftOrder(config, {
+      email: "customer@example.com",
+      lineItems: [
+        {
+          variantId: "gid://shopify/ProductVariant/123",
+          quantity: 2,
+          price: "100",
+          priceOverride: "85",
+          description: "warm white display unit"
+        }
+      ]
+    });
+    assert.equal(draftOrder.id, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("draft order price overrides cannot exceed catalog price", async () => {
+  await assert.rejects(
+    () =>
+      createDraftOrder(config, {
+        email: "customer@example.com",
+        lineItems: [{ variantId: "gid://shopify/ProductVariant/123", quantity: 1, price: "100", priceOverride: "101" }]
+      }),
+    /cannot exceed/
+  );
+});
+
 test("Shopify REST 202 responses are polled", async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];
