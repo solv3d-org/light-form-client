@@ -1311,10 +1311,18 @@ export default function StaffPage() {
           title: variant.product?.title || variant.title,
           sku: variant.sku,
           price: variant.price,
+          unitPrice: "",
+          discountType: "fixed_amount",
+          discountValue: "",
+          description: "",
           quantity: 1
         }
       ];
     });
+  };
+
+  const updateCartItem = (variantId, patch) => {
+    setCart((current) => current.map((item) => (item.variantId === variantId ? { ...item, ...patch } : item)));
   };
 
   const setQuantity = (variantId, quantity) => {
@@ -1382,6 +1390,7 @@ export default function StaffPage() {
                 cart={cart}
                 onQuantity={setQuantity}
                 onRemove={(variantId) => setQuantity(variantId, 0)}
+                onItemChange={updateCartItem}
                 onDraftCreated={() => {
                   setCart([]);
                   setRefreshKey((value) => value + 1);
