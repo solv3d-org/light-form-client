@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { legacyProjects } from "../data/legacyContent";
+import { legacyMediaUrl, legacyProjects } from "../data/legacyContent";
 
 export default function GalleryPage() {
   return (
@@ -16,7 +16,7 @@ export default function GalleryPage() {
         <div className="site-shell project-grid">
           {legacyProjects.map((project) => (
             <Link className="project-card" to={`/projects/${project.handle}`} key={project.handle}>
-              <img src={project.images[0]} alt={project.title} loading="lazy" />
+              <img src={legacyMediaUrl(project.images[0])} alt={project.title} loading="lazy" />
               <span>{project.title}</span>
             </Link>
           ))}

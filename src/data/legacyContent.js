@@ -5,6 +5,13 @@ export const contactDetails = {
   address: "341 Balestier Road #01-02, Singapore 329773"
 };
 
+const legacyUploadPrefix = "https://light-pro.com/wp-content/uploads/";
+
+export function legacyMediaUrl(url) {
+  if (!url?.startsWith(legacyUploadPrefix)) return url;
+  return `/legacy-media/${url.slice(legacyUploadPrefix.length)}`;
+}
+
 export const legacyProductCategories = [
   { handle: "downlight", title: "Downlight" },
   { handle: "ceiling-light", title: "Ceiling light" },
@@ -26,43 +33,43 @@ export const legacyProductCategories = [
 export const legacyBrands = [
   {
     name: "Siru",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/Siru.png"
+    image: "https://light-pro.com/wp-content/uploads/2024/09/LogoH85.png"
   },
   {
     name: "Innolux",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/innolux.png"
+    image: "https://light-pro.com/wp-content/uploads/2020/08/Innolux_logo_black-1.png"
   },
   {
     name: "Possoni",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/possoni.png"
+    image: "https://light-pro.com/wp-content/uploads/2020/03/possoni.png"
   },
   {
     name: "Innermost",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/innermost-Logo-red-e1589529732234.png"
+    image: "https://light-pro.com/wp-content/uploads/2020/08/innermost-Logo-1.png"
   },
   {
     name: "Schonbek",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/Logo-H110.jpg"
+    image: "https://light-pro.com/wp-content/uploads/2020/08/SL-SWAROVSKI-SCHONBEK-1-1.png"
   },
   {
     name: "Italamp",
-    image: "https://light-pro.com/wp-content/uploads/2024/09/Italamp-logo_N_2020-011-e1727252694135.jpg"
+    image: "https://light-pro.com/wp-content/uploads/2024/10/Italamp-logo_150x120.jpg"
   },
   {
     name: "Brand van Egmond",
-    image: "https://light-pro.com/wp-content/uploads/2024/09/logo-BRAND-VAN-EGMOND-400x400-1-e1727236453829.jpg"
+    image: "https://light-pro.com/wp-content/uploads/2024/10/logo-BRAND-VAN-EGMOND_120x120.png"
   },
   {
     name: "Big Ass Fans",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/BAF_LOGO_Vert_2Cspot.111X120.png"
+    image: "https://light-pro.com/wp-content/uploads/2024/10/BAF_LOGO_Vert_2Cspot.111X120.png"
   },
   {
     name: "David Trubridge",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/davidtrubridge_logotype_black.png"
+    image: "https://light-pro.com/wp-content/uploads/2020/08/davidtrubridge_logotype_black-2-e1727251736521.png"
   },
   {
     name: "Swarovski Lighting",
-    image: "https://light-pro.com/wp-content/uploads/2020/05/SL-SWAROVSKI-SCHONBEK-1-1.png"
+    image: "https://light-pro.com/wp-content/uploads/2020/08/SL-SWAROVSKI-SCHONBEK-1-1.png"
   }
 ];
 
