@@ -1,35 +1,11 @@
-@font-face {
-  font-family: "Megumi";
-  src: local("Megumi Ultra Light"), local("Megumi UltraLight"), local("FSP DEMO - Megumi");
-  font-weight: 200;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Forma DJR Deck";
-  src: local("Forma DJR Deck"), local("Forma DJR Deck Regular");
-  font-weight: 400 800;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Ballinger Mono";
-  src: local("Ballinger Mono"), local("Ballinger Mono Regular");
-  font-weight: 400 800;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --site-width: min(1200px, calc(100vw - 48px));
   --transition: 220ms ease;
   --shadow-soft: 0 24px 80px rgba(25, 18, 10, 0.1);
   --shadow-card: 0 18px 40px rgba(18, 14, 10, 0.08);
-  --font-display: "Megumi", "Cormorant Garamond", serif;
-  --font-body: "Forma DJR Deck", "Manrope", sans-serif;
-  --font-mono: "Ballinger Mono", "Space Mono", monospace;
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-body: "DM Sans", Arial, sans-serif;
+  --font-mono: "Space Mono", "SFMono-Regular", Consolas, monospace;
 }
 
 html[data-theme="neutral"] {
@@ -148,6 +124,7 @@ button {
 }
 
 .brandmark-sub {
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -166,6 +143,7 @@ button {
 
 .site-nav a {
   position: relative;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -347,6 +325,7 @@ html[data-theme="cosy"] .hero-layer-cosy {
 .footer-kicker,
 .footer-heading,
 .line-number {
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -366,13 +345,14 @@ html[data-theme="cosy"] .hero-layer-cosy {
 .section-title {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+  font-weight: 400;
+  letter-spacing: 0;
   line-height: 0.96;
 }
 
 .hero h1 {
   font-size: clamp(3rem, 5.9vw, 5.25rem);
+  font-weight: 300;
   max-width: none;
 }
 

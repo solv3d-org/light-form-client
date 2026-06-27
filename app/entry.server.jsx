@@ -10,7 +10,11 @@ export default async function handleRequest(request, responseStatusCode, respons
         storeDomain: context.shopifyConfig.storeDomain
       }
     : undefined;
-  const { nonce, header, NonceProvider } = createContentSecurityPolicy({ shop });
+  const { nonce, header, NonceProvider } = createContentSecurityPolicy({
+    shop,
+    styleSrc: ["https://fonts.googleapis.com"],
+    fontSrc: ["'self'", "https://fonts.gstatic.com"]
+  });
   const body = await renderToReadableStream(
     <NonceProvider>
       <ServerRouter context={reactRouterContext} url={request.url} nonce={nonce} />
