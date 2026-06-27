@@ -1,4 +1,5 @@
 export const DEFAULT_SHOPIFY_API_VERSION = "2026-04";
+export const DEFAULT_STAFF_API_BASE_URL = "https://light-form-backend.onrender.com";
 
 const DIAGNOSTIC_STORE_DOMAIN = "placeholder.myshopify.com";
 const DIAGNOSTIC_STOREFRONT_TOKEN = "placeholder";
@@ -51,7 +52,8 @@ export function isShopifyConfigured(config) {
 
 export function getStaffApiBaseUrl(env = {}) {
   const source = readRuntimeEnv(env);
-  return String(source.PUBLIC_STAFF_API_BASE_URL || "http://localhost:8787").replace(/\/$/, "");
+  const fallback = process.env.NODE_ENV === "production" ? DEFAULT_STAFF_API_BASE_URL : "http://localhost:8787";
+  return String(source.PUBLIC_STAFF_API_BASE_URL || fallback).replace(/\/$/, "");
 }
 
 export function getHydrogenRuntime(env = {}, options = {}) {
