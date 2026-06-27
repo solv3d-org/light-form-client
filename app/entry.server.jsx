@@ -18,7 +18,7 @@ export default async function handleRequest(request, responseStatusCode, respons
         storeDomain: context.shopifyConfig.storeDomain
       }
     : undefined;
-  const staffApiOrigin = cspOrigin(context.staffApiBaseUrl);
+  const staffApiOrigin = cspOrigin(context.staffApiBaseUrl || context.env?.PUBLIC_STAFF_API_BASE_URL);
   const { nonce, header, NonceProvider } = createContentSecurityPolicy({
     shop,
     styleSrc: ["https://fonts.googleapis.com"],
