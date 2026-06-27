@@ -111,6 +111,7 @@ required Admin API scopes:
   read_products
   read_inventory
   read_locations
+  read_orders
 `;
 }
 

@@ -38,6 +38,8 @@ read_products
 write_products
 read_inventory
 write_inventory
+read_locations
+read_orders
 read_draft_orders
 write_draft_orders
 ```

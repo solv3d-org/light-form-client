@@ -8,7 +8,9 @@ import { StaffStore } from "./store.js";
 import { createCatalogProvider } from "./catalog.js";
 import {
   downloadBulkJsonl,
+  getShopifyOrder,
   getCatalogBulkOperation,
+  listShopifyOrders,
   parseCatalogBulkJsonl,
   startCatalogBulkOperation,
   summarizeDraftOrder
@@ -139,6 +141,42 @@ function mapStoreError(error) {
   return new HttpError(400, error.message);
 }
 
+function numericShopifyId(value) {
+  return String(value || "").match(/(\d+)$/)?.[1] || "";
+}
+
+function isShopifyOrdersScopeError(error) {
+  return (error.details || []).some((detail) =>
+    detail?.extensions?.code === "ACCESS_DENIED" && String(detail?.message || "").includes("orders field")
+  );
+}
+
+function mergeOrders(staffOrders, shopifyOrders) {
+  const seenOrderIds = new Set(staffOrders.map((order) => numericShopifyId(order.shopifyOrderId)).filter(Boolean));
+  return [
+    ...staffOrders.map((order) => ({ source: "ims-draft", ...order })),
+    ...shopifyOrders.filter((order) => !seenOrderIds.has(numericShopifyId(order.shopifyOrderId)))
+  ].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+async function listVisibleOrders(status) {
+  const staffOrders = await store.listOrders(status);
+  const warnings = [];
+  let shopifyOrders = [];
+  if (isShopifyAdminConfigured(config)) {
+    try {
+      shopifyOrders = await listShopifyOrders(config, { status });
+    } catch (error) {
+      if (!isShopifyOrdersScopeError(error)) throw error;
+      warnings.push("Shopify storefront orders require the read_orders Admin API scope.");
+    }
+  }
+  return {
+    orders: mergeOrders(staffOrders, shopifyOrders),
+    warnings
+  };
+}
+
 const routes = [
   route("GET", "/health", { auth: false }, async () => ({
     ok: true,
@@ -261,11 +299,14 @@ const routes = [
     };
   }),
 
-  route("GET", "/api/orders", { permission: "order:read" }, async ({ url }) => ({
-    orders: await store.listOrders(url.searchParams.get("status") || "")
-  })),
+  route("GET", "/api/orders", { permission: "order:read" }, async ({ url }) =>
+    listVisibleOrders(url.searchParams.get("status") || "")
+  ),
 
   route("GET", "/api/orders/:id", { permission: "order:read" }, async ({ params }) => {
+    if (params.id.startsWith("shopify-order-")) {
+      return { order: await getShopifyOrder(config, params.id), shopifyDraftOrder: null };
+    }
     const order = await store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
     return {

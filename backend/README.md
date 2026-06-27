@@ -95,6 +95,6 @@ Customer-hidden fields live in local `data/staff-orders.json`, not public fronte
 
 Uses Admin GraphQL for product search/CRUD and inventory writes. Uses Admin REST DraftOrder endpoints for draft orders, invoices, and completion.
 
-Required Admin scopes: `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_draft_orders`, `write_draft_orders`.
+Required Admin scopes: `read_products`, `write_products`, `read_inventory`, `write_inventory`, `read_locations`, `read_orders`, `read_draft_orders`, `write_draft_orders`.
 
 Webhook endpoint: `POST /webhooks/shopify`. It verifies Shopify HMAC before parsing JSON, deduplicates by `X-Shopify-Webhook-Id`, records events, and refreshes IMS cache/order state where applicable.

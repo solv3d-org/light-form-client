@@ -1195,7 +1195,7 @@ function OrderDetailPanel({ order, shopifyDraftOrder, onClose }) {
       <div className="staff-panel-head">
         <div>
           <p className="section-kicker">Invoice detail</p>
-          <h2>{order.shopifyDraftOrderName || order.id}</h2>
+          <h2>{order.shopifyDraftOrderName || order.shopifyOrderName || order.id}</h2>
         </div>
         <button className="button-inline" type="button" onClick={onClose}>
           Back to orders
@@ -1204,14 +1204,17 @@ function OrderDetailPanel({ order, shopifyDraftOrder, onClose }) {
       <dl className="staff-detail-grid">
         {[
           ["Status", order.status],
+          ["Source", order.source === "shopify-order" ? "Shopify order" : "IMS draft"],
           ["Customer", order.customer?.email || "No email"],
           ["Fulfillment", order.fulfillment?.type || "pickup"],
+          ["Financial", order.fulfillment?.financialStatus],
+          ["Fulfillment status", order.fulfillment?.fulfillmentStatus],
           ["Shopify draft", order.shopifyDraftOrderId],
-          ["Shopify order", order.shopifyOrderId],
+          ["Shopify order", order.shopifyOrderName || order.shopifyOrderId],
           ["Invoice URL", order.shopifyInvoiceUrl],
           ["Created", order.createdAt],
           ["Updated", order.updatedAt],
-          ["Draft total", shopifyDraftOrder?.totalPrice ? moneyLabel(shopifyDraftOrder.totalPrice) : ""]
+          ["Total", order.internal?.totalPrice ? moneyLabel(order.internal.totalPrice) : shopifyDraftOrder?.totalPrice ? moneyLabel(shopifyDraftOrder.totalPrice) : ""]
         ]
           .filter(([, value]) => value !== undefined && value !== null && value !== "")
           .map(([label, value]) => (
@@ -1266,6 +1269,7 @@ function OrderDetailPanel({ order, shopifyDraftOrder, onClose }) {
 function OrdersPanel({ staff, refreshKey }) {
   const [tab, setTab] = useState("pending");
   const [orders, setOrders] = useState([]);
+  const [warnings, setWarnings] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [shopifyDraftOrder, setShopifyDraftOrder] = useState(null);
   const [status, setStatus] = useState("idle");
@@ -1280,6 +1284,7 @@ function OrdersPanel({ staff, refreshKey }) {
     try {
       const payload = await listStaffOrders(tab);
       setOrders(payload.orders || []);
+      setWarnings(payload.warnings || []);
     } catch (nextError) {
       setError(nextError.message);
     } finally {
@@ -1363,13 +1368,22 @@ function OrdersPanel({ staff, refreshKey }) {
         </div>
       </div>
       {error && <p className="staff-error">{error}</p>}
+      {warnings.map((warning) => (
+        <p className="staff-muted" key={warning}>{warning}</p>
+      ))}
       {status === "loading" && <p className="staff-muted">Loading orders.</p>}
       <div className="staff-order-list">
         {orders.map((order) => (
           <article className="staff-order" key={order.id}>
             <button className="staff-order-summary" type="button" onClick={() => handleSelectOrder(order.id)}>
-              <strong>{order.shopifyDraftOrderName || order.id}</strong>
+              <strong>{order.shopifyDraftOrderName || order.shopifyOrderName || order.id}</strong>
               <span>{order.customer?.email || "No email"} · {order.fulfillment?.type || "pickup"}</span>
+              {order.source === "shopify-order" && (
+                <small>
+                  Shopify · {order.fulfillment?.financialStatus || "payment"} · {order.fulfillment?.fulfillmentStatus || "fulfillment"}
+                  {order.internal?.totalPrice ? ` · ${moneyLabel(order.internal.totalPrice)}` : ""}
+                </small>
+              )}
               {order.internal?.payment?.split && (
                 <small>
                   Balance {moneyLabel(order.internal.payment.balanceDue)} · collect {order.internal.payment.balanceCollectionDate || "TBA"}
@@ -1377,7 +1391,7 @@ function OrdersPanel({ staff, refreshKey }) {
               )}
               <small>{order.createdAt}</small>
             </button>
-            {tab === "pending" && (canSendInvoice || canCompleteOrder) && (
+            {tab === "pending" && order.source !== "shopify-order" && (canSendInvoice || canCompleteOrder) && (
               <div className="staff-order-actions">
                 {canSendInvoice && (
                   <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleInvoice(order.id)}>

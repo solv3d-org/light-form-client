@@ -48,6 +48,112 @@ const PRODUCT_VARIANTS_QUERY = `
   }
 `;
 
+const ORDERS_QUERY = `
+  query StaffOrders($first: Int!, $query: String) {
+    orders(first: $first, query: $query, sortKey: CREATED_AT, reverse: true) {
+      nodes {
+        id
+        name
+        email
+        createdAt
+        updatedAt
+        closedAt
+        cancelledAt
+        displayFinancialStatus
+        displayFulfillmentStatus
+        sourceName
+        currentTotalPriceSet {
+          shopMoney {
+            amount
+            currencyCode
+          }
+        }
+        customer {
+          id
+          displayName
+          email
+        }
+        lineItems(first: 25) {
+          nodes {
+            id
+            title
+            quantity
+            sku
+            variant {
+              id
+              sku
+            }
+            originalUnitPriceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+            }
+            discountedUnitPriceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const ORDER_BY_ID_QUERY = `
+  query StaffOrder($id: ID!) {
+    order(id: $id) {
+      id
+      name
+      email
+      createdAt
+      updatedAt
+      closedAt
+      cancelledAt
+      displayFinancialStatus
+      displayFulfillmentStatus
+      sourceName
+      currentTotalPriceSet {
+        shopMoney {
+          amount
+          currencyCode
+        }
+      }
+      customer {
+        id
+        displayName
+        email
+      }
+      lineItems(first: 25) {
+        nodes {
+          id
+          title
+          quantity
+          sku
+          variant {
+            id
+            sku
+          }
+          originalUnitPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          discountedUnitPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 const PRODUCT_CREATE_MUTATION = `
   mutation ProductCreate($product: ProductCreateInput!) {
     productCreate(product: $product) {
@@ -764,6 +870,23 @@ export async function searchInventory(config, { query = "", first = 25 } = {}) {
   });
 }
 
+export async function listShopifyOrders(config, { status = "", first = 50 } = {}) {
+  const safeFirst = Math.max(1, Math.min(Number(first) || 50, 100));
+  const query = status === "completed" ? "status:closed" : status === "pending" ? "status:open" : "status:any";
+  const data = await shopifyAdminGraphql(config, ORDERS_QUERY, {
+    first: safeFirst,
+    query
+  });
+  return data.orders.nodes.map(summarizeShopifyOrder).filter((order) => !status || order.status === status);
+}
+
+export async function getShopifyOrder(config, orderId) {
+  const data = await shopifyAdminGraphql(config, ORDER_BY_ID_QUERY, {
+    id: shopifyGid("Order", orderId)
+  });
+  return summarizeShopifyOrder(data.order);
+}
+
 export async function createProduct(config, input) {
   const data = await shopifyAdminGraphql(config, PRODUCT_CREATE_MUTATION, {
     product: productInput(input)
@@ -928,5 +1051,47 @@ export function summarizeDraftOrder(draftOrder) {
       quantity: item.quantity,
       price: item.price || ""
     }))
+  };
+}
+
+export function summarizeShopifyOrder(order) {
+  if (!order) return null;
+  const numericId = numericShopifyId(order.id, "orderId");
+  const total = order.currentTotalPriceSet?.shopMoney?.amount || "";
+  const status = order.cancelledAt || order.closedAt || order.displayFulfillmentStatus === "FULFILLED" ? "completed" : "pending";
+  return {
+    id: `shopify-order-${numericId}`,
+    source: "shopify-order",
+    status,
+    shopifyOrderId: order.id,
+    shopifyOrderName: order.name || "",
+    customer: {
+      email: order.email || order.customer?.email || "",
+      name: order.customer?.displayName || "",
+      customerId: order.customer?.id || ""
+    },
+    fulfillment: {
+      type: "online",
+      financialStatus: order.displayFinancialStatus || "",
+      fulfillmentStatus: order.displayFulfillmentStatus || ""
+    },
+    internal: {
+      sourceName: order.sourceName || "web",
+      totalPrice: total,
+      lineItems: (order.lineItems?.nodes || []).map((item) => ({
+        id: item.id,
+        variantId: item.variant?.id || "",
+        title: item.title || "",
+        sku: item.sku || item.variant?.sku || "",
+        quantity: item.quantity || 1,
+        price: item.discountedUnitPriceSet?.shopMoney?.amount || item.originalUnitPriceSet?.shopMoney?.amount || ""
+      }))
+    },
+    hiddenFromCustomer: false,
+    createdBy: null,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+    completedAt: order.closedAt || null,
+    canceledAt: order.cancelledAt || null
   };
 }
