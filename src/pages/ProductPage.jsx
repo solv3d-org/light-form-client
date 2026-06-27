@@ -123,7 +123,7 @@ function ProductOptions({ productOptions }) {
 
 function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
   const { openCart } = useCartDrawer();
-  const shopPayStoreDomain = storeDomain?.startsWith("http") ? storeDomain : `https://${storeDomain}`;
+  const shopPayStoreDomain = storeDomain ? (storeDomain.startsWith("http") ? storeDomain : `https://${storeDomain}`) : "";
   const selectedVariant = useOptimisticVariant(
     shopifyProduct.selectedOrFirstAvailableVariant,
     getAdjacentAndFirstAvailableVariants(shopifyProduct)
