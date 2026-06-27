@@ -52,8 +52,7 @@ export function isShopifyConfigured(config) {
 
 export function getStaffApiBaseUrl(env = {}) {
   const source = readRuntimeEnv(env);
-  const fallback = process.env.NODE_ENV === "production" ? DEFAULT_STAFF_API_BASE_URL : "http://localhost:8787";
-  return String(source.PUBLIC_STAFF_API_BASE_URL || fallback).replace(/\/$/, "");
+  return String(source.PUBLIC_STAFF_API_BASE_URL || DEFAULT_STAFF_API_BASE_URL).replace(/\/$/, "");
 }
 
 export function getHydrogenRuntime(env = {}, options = {}) {

@@ -1,5 +1,6 @@
 const STAFF_TOKEN_KEY = "light-form-staff-token";
-let staffApiBaseUrl = "http://localhost:8787";
+const DEFAULT_STAFF_API_BASE_URL = "https://light-form-backend.onrender.com";
+let staffApiBaseUrl = DEFAULT_STAFF_API_BASE_URL;
 
 export const staffApiConfig = {
   get baseUrl() {
