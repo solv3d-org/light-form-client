@@ -4,3 +4,4 @@ node_modules
 dist/
 .shopify-import/
 .DS_Store
+.shopify/
