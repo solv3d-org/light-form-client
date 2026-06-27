@@ -3,6 +3,14 @@ import { isbot } from "isbot";
 import { renderToReadableStream } from "react-dom/server";
 import { ServerRouter } from "react-router";
 
+function cspOrigin(url) {
+  try {
+    return url ? new URL(url).origin : "";
+  } catch {
+    return "";
+  }
+}
+
 export default async function handleRequest(request, responseStatusCode, responseHeaders, reactRouterContext, context) {
   const shop = context.shopifyConfigured
     ? {
@@ -10,10 +18,12 @@ export default async function handleRequest(request, responseStatusCode, respons
         storeDomain: context.shopifyConfig.storeDomain
       }
     : undefined;
+  const staffApiOrigin = cspOrigin(context.staffApiBaseUrl);
   const { nonce, header, NonceProvider } = createContentSecurityPolicy({
     shop,
     styleSrc: ["https://fonts.googleapis.com"],
-    fontSrc: ["'self'", "https://fonts.gstatic.com"]
+    fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    ...(staffApiOrigin ? { connectSrc: [staffApiOrigin] } : {})
   });
   const body = await renderToReadableStream(
     <NonceProvider>
