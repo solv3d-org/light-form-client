@@ -1,6 +1,9 @@
 import { CartForm } from "@shopify/hydrogen";
+import { useState } from "react";
 import { Link } from "react-router";
 import { useCartDrawer } from "../context/CartDrawerContext";
+import ProductUtilityButtons from "./ProductUtilityButtons";
+import QuickViewModal from "./QuickViewModal";
 import ProductImage from "./ProductImage";
 import ProductPrice from "./ProductPrice";
 
@@ -10,6 +13,7 @@ function getCartError(fetcher) {
 }
 
 export default function ProductCard({ product, variant = "default" }) {
+  const [quickViewOpen, setQuickViewOpen] = useState(false);
   const isMinimal = variant === "minimal";
   const { openCart } = useCartDrawer();
   const canAddToCart = product.checkoutEnabled && product.shopifyVariantId;
@@ -40,7 +44,11 @@ export default function ProductCard({ product, variant = "default" }) {
         )}
         <h3>{productPath ? <Link to={productPath}>{product.title}</Link> : product.title}</h3>
         <ProductPrice product={product} />
+        <ProductUtilityButtons product={product} compact={isMinimal} />
         <div className="product-actions">
+          <button className="button-inline product-action" type="button" onClick={() => setQuickViewOpen(true)}>
+            Quick view
+          </button>
           {canAddToCart ? (
             <CartForm
               route="/cart"
@@ -74,6 +82,7 @@ export default function ProductCard({ product, variant = "default" }) {
           )}
         </div>
       </div>
+      {quickViewOpen && <QuickViewModal product={product} onClose={() => setQuickViewOpen(false)} />}
     </article>
   );
 }

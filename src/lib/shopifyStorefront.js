@@ -226,9 +226,15 @@ const PRODUCT_QUERY = `#graphql
           ...ImageFields
         }
       }
-      collections(first: 1) {
+      collections(first: 3) {
         nodes {
           title
+          handle
+          products(first: 5) {
+            nodes {
+              ...ProductCardFields
+            }
+          }
         }
       }
       priceRange {
@@ -285,8 +291,7 @@ const PRODUCT_QUERY = `#graphql
       }
     }
   }
-  ${MONEY_FRAGMENT}
-  ${IMAGE_FRAGMENT}
+  ${PRODUCT_CARD_FRAGMENT}
   ${PRODUCT_VARIANT_FRAGMENT}
 `;
 

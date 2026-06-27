@@ -1,3 +1,5 @@
+import { legacyProjects } from "../../src/data/legacyContent";
+
 const SITEMAP_QUERY = `#graphql
   query Sitemap {
     products(first: 250) {
@@ -69,10 +71,21 @@ export async function loader({ context, request }) {
   const urls = [
     urlEntry(origin, "/"),
     urlEntry(origin, "/shop"),
+    urlEntry(origin, "/gallery"),
     urlEntry(origin, "/services"),
     urlEntry(origin, "/about"),
+    urlEntry(origin, "/contact"),
+    urlEntry(origin, "/wishlist"),
+    urlEntry(origin, "/compare"),
+    urlEntry(origin, "/shipping-info"),
+    urlEntry(origin, "/refund-policy"),
+    urlEntry(origin, "/terms-of-service"),
+    urlEntry(origin, "/privacy-policy"),
     urlEntry(origin, "/collections")
   ];
+  for (const project of legacyProjects) {
+    urls.push(urlEntry(origin, `/projects/${project.handle}`));
+  }
 
   try {
     const data = await context.storefront.query(SITEMAP_QUERY, {
@@ -103,4 +116,3 @@ export async function loader({ context, request }) {
     }
   });
 }
-

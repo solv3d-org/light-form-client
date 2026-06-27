@@ -14,15 +14,88 @@ type Pages = {
   "/": {
     params: {};
   };
+  "/collections/:collectionHandle": {
+    params: {
+      "collectionHandle": string;
+    };
+  };
+  "/account/orders/:orderId": {
+    params: {
+      "orderId": string;
+    };
+  };
+  "/projects/:projectHandle": {
+    params: {
+      "projectHandle": string;
+    };
+  };
+  "/policies/:policyHandle": {
+    params: {
+      "policyHandle": string;
+    };
+  };
+  "/collections": {
+    params: {};
+  };
+  "/terms-of-service-2": {
+    params: {};
+  };
+  "/account/authorize": {
+    params: {};
+  };
+  "/pages/:pageHandle": {
+    params: {
+      "pageHandle": string;
+    };
+  };
   "/products/:handle": {
     params: {
       "handle": string;
     };
   };
+  "/terms-of-service": {
+    params: {};
+  };
+  "/account": {
+    params: {};
+  };
+  "/privacy-policy": {
+    params: {};
+  };
+  "/account/login": {
+    params: {};
+  };
+  "/refund-policy": {
+    params: {};
+  };
+  "/shipping-info": {
+    params: {};
+  };
+  "/sitemap.xml": {
+    params: {};
+  };
+  "/robots.txt": {
+    params: {};
+  };
   "/services": {
     params: {};
   };
+  "/wishlist": {
+    params: {};
+  };
+  "/compare": {
+    params: {};
+  };
+  "/contact": {
+    params: {};
+  };
+  "/gallery": {
+    params: {};
+  };
   "/health": {
+    params: {};
+  };
+  "/search": {
     params: {};
   };
   "/about": {
@@ -51,15 +124,95 @@ type Pages = {
 type RouteFiles = {
   "root.jsx": {
     id: "root";
-    page: "/" | "/products/:handle" | "/services" | "/health" | "/about" | "/staff" | "/cart" | "/shop" | "/graphiql" | "/subrequest-profiler" | "/.well-known/appspecific/com.chrome.devtools.json";
+    page: "/" | "/collections/:collectionHandle" | "/account/orders/:orderId" | "/projects/:projectHandle" | "/policies/:policyHandle" | "/collections" | "/terms-of-service-2" | "/account/authorize" | "/pages/:pageHandle" | "/products/:handle" | "/terms-of-service" | "/account" | "/privacy-policy" | "/account/login" | "/refund-policy" | "/shipping-info" | "/sitemap.xml" | "/robots.txt" | "/services" | "/wishlist" | "/compare" | "/contact" | "/gallery" | "/health" | "/search" | "/about" | "/staff" | "/cart" | "/shop" | "/graphiql" | "/subrequest-profiler" | "/.well-known/appspecific/com.chrome.devtools.json";
+  };
+  "routes/collections.$collectionHandle.jsx": {
+    id: "routes/collections.$collectionHandle";
+    page: "/collections/:collectionHandle";
+  };
+  "routes/account.orders.$orderId.jsx": {
+    id: "routes/account.orders.$orderId";
+    page: "/account/orders/:orderId";
+  };
+  "routes/projects.$projectHandle.jsx": {
+    id: "routes/projects.$projectHandle";
+    page: "/projects/:projectHandle";
+  };
+  "routes/policies.$policyHandle.jsx": {
+    id: "routes/policies.$policyHandle";
+    page: "/policies/:policyHandle";
+  };
+  "routes/collections._index.jsx": {
+    id: "routes/collections._index";
+    page: "/collections";
+  };
+  "routes/terms-of-service-2.jsx": {
+    id: "routes/terms-of-service-2";
+    page: "/terms-of-service-2";
+  };
+  "routes/account.authorize.jsx": {
+    id: "routes/account.authorize";
+    page: "/account/authorize";
+  };
+  "routes/pages.$pageHandle.jsx": {
+    id: "routes/pages.$pageHandle";
+    page: "/pages/:pageHandle";
   };
   "routes/products.$handle.jsx": {
     id: "routes/products.$handle";
     page: "/products/:handle";
   };
+  "routes/terms-of-service.jsx": {
+    id: "routes/terms-of-service";
+    page: "/terms-of-service";
+  };
+  "routes/account._index.jsx": {
+    id: "routes/account._index";
+    page: "/account";
+  };
+  "routes/privacy-policy.jsx": {
+    id: "routes/privacy-policy";
+    page: "/privacy-policy";
+  };
+  "routes/account.login.jsx": {
+    id: "routes/account.login";
+    page: "/account/login";
+  };
+  "routes/refund-policy.jsx": {
+    id: "routes/refund-policy";
+    page: "/refund-policy";
+  };
+  "routes/shipping-info.jsx": {
+    id: "routes/shipping-info";
+    page: "/shipping-info";
+  };
+  "routes/sitemap[.]xml.jsx": {
+    id: "routes/sitemap[.]xml";
+    page: "/sitemap.xml";
+  };
+  "routes/robots[.]txt.jsx": {
+    id: "routes/robots[.]txt";
+    page: "/robots.txt";
+  };
   "routes/services.jsx": {
     id: "routes/services";
     page: "/services";
+  };
+  "routes/wishlist.jsx": {
+    id: "routes/wishlist";
+    page: "/wishlist";
+  };
+  "routes/compare.jsx": {
+    id: "routes/compare";
+    page: "/compare";
+  };
+  "routes/contact.jsx": {
+    id: "routes/contact";
+    page: "/contact";
+  };
+  "routes/gallery.jsx": {
+    id: "routes/gallery";
+    page: "/gallery";
   };
   "routes/_index.jsx": {
     id: "routes/_index";
@@ -68,6 +221,10 @@ type RouteFiles = {
   "routes/health.jsx": {
     id: "routes/health";
     page: "/health";
+  };
+  "routes/search.jsx": {
+    id: "routes/search";
+    page: "/search";
   };
   "routes/about.jsx": {
     id: "routes/about";
@@ -109,10 +266,31 @@ type RouteFiles = {
 
 type RouteModules = {
   "root": typeof import("./app/root.jsx");
+  "routes/collections.$collectionHandle": typeof import("./app/routes/collections.$collectionHandle.jsx");
+  "routes/account.orders.$orderId": typeof import("./app/routes/account.orders.$orderId.jsx");
+  "routes/projects.$projectHandle": typeof import("./app/routes/projects.$projectHandle.jsx");
+  "routes/policies.$policyHandle": typeof import("./app/routes/policies.$policyHandle.jsx");
+  "routes/collections._index": typeof import("./app/routes/collections._index.jsx");
+  "routes/terms-of-service-2": typeof import("./app/routes/terms-of-service-2.jsx");
+  "routes/account.authorize": typeof import("./app/routes/account.authorize.jsx");
+  "routes/pages.$pageHandle": typeof import("./app/routes/pages.$pageHandle.jsx");
   "routes/products.$handle": typeof import("./app/routes/products.$handle.jsx");
+  "routes/terms-of-service": typeof import("./app/routes/terms-of-service.jsx");
+  "routes/account._index": typeof import("./app/routes/account._index.jsx");
+  "routes/privacy-policy": typeof import("./app/routes/privacy-policy.jsx");
+  "routes/account.login": typeof import("./app/routes/account.login.jsx");
+  "routes/refund-policy": typeof import("./app/routes/refund-policy.jsx");
+  "routes/shipping-info": typeof import("./app/routes/shipping-info.jsx");
+  "routes/sitemap[.]xml": typeof import("./app/routes/sitemap[.]xml.jsx");
+  "routes/robots[.]txt": typeof import("./app/routes/robots[.]txt.jsx");
   "routes/services": typeof import("./app/routes/services.jsx");
+  "routes/wishlist": typeof import("./app/routes/wishlist.jsx");
+  "routes/compare": typeof import("./app/routes/compare.jsx");
+  "routes/contact": typeof import("./app/routes/contact.jsx");
+  "routes/gallery": typeof import("./app/routes/gallery.jsx");
   "routes/_index": typeof import("./app/routes/_index.jsx");
   "routes/health": typeof import("./app/routes/health.jsx");
+  "routes/search": typeof import("./app/routes/search.jsx");
   "routes/about": typeof import("./app/routes/about.jsx");
   "routes/staff": typeof import("./app/routes/staff.jsx");
   "routes/cart": typeof import("./app/routes/cart.jsx");

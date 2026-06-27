@@ -7,8 +7,10 @@ import CartDrawer from "./CartDrawer";
 const pages = [
   { id: "home", label: "Home", href: "/" },
   { id: "shop", label: "Shop", href: "/shop" },
+  { id: "gallery", label: "Projects", href: "/gallery" },
   { id: "services", label: "Our Services", href: "/services" },
-  { id: "about", label: "About Us", href: "/about" }
+  { id: "about", label: "About Us", href: "/about" },
+  { id: "contact", label: "Contact", href: "/contact" }
 ];
 
 const staffPages = [
@@ -21,8 +23,18 @@ const staffPages = [
 const footerLinks = [
   { label: "Home", href: "/" },
   { label: "Shop", href: "/shop" },
+  { label: "Projects", href: "/gallery" },
   { label: "Services", href: "/services" },
-  { label: "About Us", href: "/about" }
+  { label: "About Us", href: "/about" },
+  { label: "Wishlist", href: "/wishlist" },
+  { label: "Compare", href: "/compare" }
+];
+
+const policyLinks = [
+  { label: "Shipping", href: "/shipping-info" },
+  { label: "Refunds", href: "/refund-policy" },
+  { label: "Terms", href: "/terms-of-service" },
+  { label: "Privacy", href: "/privacy-policy" }
 ];
 
 function HeaderCartButton() {
@@ -133,6 +145,16 @@ export default function SiteLayout({ pageTitle, children }) {
             <p className="footer-heading">Browse</p>
             <ul className="footer-links">
               {footerLinks.map((link) => (
+                <li key={link.href}>
+                  <NavLink to={link.href}>{link.label}</NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="footer-heading">Policy</p>
+            <ul className="footer-links">
+              {policyLinks.map((link) => (
                 <li key={link.href}>
                   <NavLink to={link.href}>{link.label}</NavLink>
                 </li>

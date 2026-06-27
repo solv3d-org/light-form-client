@@ -1,4 +1,5 @@
 import HomeCarousel from "../components/HomeCarousel";
+import BrandRail from "../components/BrandRail";
 import MoodSetter from "../components/MoodSetter";
 
 export default function HomePage({ products, catalogMetadata, catalogStatus, theme, onThemeChange }) {
@@ -24,6 +25,8 @@ export default function HomePage({ products, catalogMetadata, catalogStatus, the
           </div>
         </div>
       </section>
+
+      <BrandRail />
 
       <section className="section">
         <div className="site-shell">

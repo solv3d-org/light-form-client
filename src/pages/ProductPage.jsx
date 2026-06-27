@@ -9,8 +9,10 @@ import {
 import { Link, useNavigate } from "react-router";
 import { normalizeShopifyProduct } from "../lib/shopifyStorefront";
 import { useCartDrawer } from "../context/CartDrawerContext";
+import ProductCard from "../components/ProductCard";
 import ProductImage from "../components/ProductImage";
 import ProductPrice from "../components/ProductPrice";
+import ProductUtilityButtons from "../components/ProductUtilityButtons";
 
 function getCartError(fetcher) {
   const error = fetcher.data?.errors?.[0];
@@ -31,6 +33,7 @@ function FallbackProductDetail({ product }) {
             </p>
             <h1>{product.title}</h1>
             <ProductPrice product={product} />
+            <ProductUtilityButtons product={product} />
             <div className="hero-actions">
               {product.sourceUrl && (
                 <a className="button-primary" href={product.sourceUrl} target="_blank" rel="noreferrer">
@@ -132,6 +135,32 @@ function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
   });
   const product = normalizeShopifyProduct(shopifyProduct, 0, { storeDomain }, selectedVariant);
   const canAddToCart = selectedVariant?.availableForSale && selectedVariant?.id;
+  const images = shopifyProduct.images?.nodes?.length ? shopifyProduct.images.nodes : [shopifyProduct.featuredImage].filter(Boolean);
+  const specs = [
+    ["SKU", selectedVariant?.sku],
+    ["Vendor", shopifyProduct.vendor],
+    ["Type", shopifyProduct.productType],
+    ["Category", shopifyProduct.collections?.nodes?.[0]?.title],
+    ["Variant", selectedVariant?.title && selectedVariant.title !== "Default Title" ? selectedVariant.title : ""],
+    [
+      "Options",
+      selectedVariant?.selectedOptions
+        ?.filter((option) => option.value !== "Default Title")
+        .map((option) => `${option.name}: ${option.value}`)
+        .join(", ")
+    ],
+    ["Availability", canAddToCart ? "Available" : "Unavailable"]
+  ].filter(([, value]) => value);
+  const relatedSeen = new Set();
+  const relatedProducts = (shopifyProduct.collections?.nodes || [])
+    .flatMap((collection) => collection.products?.nodes || [])
+    .filter((related) => {
+      if (related.id === shopifyProduct.id || relatedSeen.has(related.id)) return false;
+      relatedSeen.add(related.id);
+      return true;
+    })
+    .slice(0, 4)
+    .map((related, index) => normalizeShopifyProduct(related, index, { storeDomain }));
 
   return (
     <main>
@@ -139,6 +168,13 @@ function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
         <div className="site-shell product-detail-grid">
           <div className="product-detail-media">
             <ProductImage src={product.image} alt={product.imageAlt || product.title} image={product.imageData} />
+            {images.length > 1 && (
+              <div className="product-gallery-strip" aria-label="Product images">
+                {images.map((image) => (
+                  <img src={image.url} alt={image.altText || shopifyProduct.title} key={image.id || image.url} loading="lazy" />
+                ))}
+              </div>
+            )}
           </div>
           <div className="product-detail-copy">
             <p className="page-kicker">
@@ -147,6 +183,7 @@ function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
             <h1>{shopifyProduct.title}</h1>
             <ProductPrice product={product} price={selectedVariant?.price} compareAtPrice={selectedVariant?.compareAtPrice} />
             <ProductOptions productOptions={productOptions} />
+            <ProductUtilityButtons product={product} />
             <div className="hero-actions">
               <CartForm
                 route="/cart"
@@ -175,9 +212,40 @@ function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
                 <ShopPayButton storeDomain={storeDomain} variantIds={[selectedVariant.id]} />
               </div>
             )}
+            {specs.length > 0 && (
+              <dl className="product-specs">
+                {specs.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {shopifyProduct.descriptionHtml && (
+              <div
+                className="standard-content product-description"
+                dangerouslySetInnerHTML={{ __html: shopifyProduct.descriptionHtml }}
+              />
+            )}
           </div>
         </div>
       </section>
+      {relatedProducts.length > 0 && (
+        <section className="section">
+          <div className="site-shell">
+            <div className="section-copy product-related-head">
+              <p className="section-kicker">Related</p>
+              <h2 className="section-title">From the same collection.</h2>
+            </div>
+            <div className="product-grid">
+              {relatedProducts.map((related) => (
+                <ProductCard key={related.id} product={related} variant="minimal" />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
