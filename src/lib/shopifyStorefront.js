@@ -459,10 +459,10 @@ function normalizeProductConnection(connection, context) {
   };
 }
 
-export async function loadShopCatalog(context, request) {
+export async function loadCollectionCatalog(context, request, collectionHandleOverride) {
   const filters = readShopFilters(request);
   const paginationVariables = getPaginationVariables(request, { pageBy: SHOP_PAGE_SIZE });
-  const handle = collectionHandle(context);
+  const handle = collectionHandleOverride || collectionHandle(context);
 
   if (filters.search) {
     const productsData = await context.storefront.query(PRODUCTS_QUERY, {
@@ -574,6 +574,10 @@ export async function loadShopCatalog(context, request) {
     },
     catalogStatus: "ready"
   };
+}
+
+export async function loadShopCatalog(context, request) {
+  return loadCollectionCatalog(context, request);
 }
 
 export async function loadCatalog(context, request) {

@@ -385,6 +385,22 @@ html[data-theme="cosy"] .hero-layer-cosy {
   gap: 14px;
 }
 
+.standard-content {
+  max-width: 760px;
+  line-height: 1.7;
+  color: var(--text-soft);
+}
+
+.standard-content h1,
+.standard-content h2,
+.standard-content h3 {
+  color: var(--text);
+}
+
+.standard-content a {
+  color: var(--accent);
+}
+
 .button-primary,
 .button-secondary,
 .button-inline {
