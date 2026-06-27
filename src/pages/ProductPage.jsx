@@ -123,6 +123,7 @@ function ProductOptions({ productOptions }) {
 
 function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
   const { openCart } = useCartDrawer();
+  const shopPayStoreDomain = storeDomain?.startsWith("http") ? storeDomain : `https://${storeDomain}`;
   const selectedVariant = useOptimisticVariant(
     shopifyProduct.selectedOrFirstAvailableVariant,
     getAdjacentAndFirstAvailableVariants(shopifyProduct)
@@ -209,7 +210,7 @@ function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
             </div>
             {canAddToCart && storeDomain && (
               <div className="shop-pay-wrap">
-                <ShopPayButton storeDomain={storeDomain} variantIds={[selectedVariant.id]} />
+                <ShopPayButton storeDomain={shopPayStoreDomain} variantIds={[selectedVariant.id]} />
               </div>
             )}
             {specs.length > 0 && (
