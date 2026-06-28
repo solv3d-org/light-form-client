@@ -309,9 +309,17 @@ const routes = [
     }
     const order = await store.findOrder(params.id);
     if (!order) throw new HttpError(404, "Order record not found.");
+    let shopifyDraftOrder = null;
+    const warnings = [];
+    try {
+      shopifyDraftOrder = summarizeDraftOrder(await catalogProvider.getDraftOrder(order.shopifyDraftOrderId));
+    } catch (error) {
+      warnings.push(error?.message || "Shopify draft order unavailable.");
+    }
     return {
       order,
-      shopifyDraftOrder: summarizeDraftOrder(await catalogProvider.getDraftOrder(order.shopifyDraftOrderId))
+      shopifyDraftOrder,
+      warnings
     };
   }),
 
