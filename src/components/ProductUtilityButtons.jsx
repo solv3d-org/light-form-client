@@ -3,12 +3,10 @@ import { isProductInList, toggleProductInList } from "../lib/localProductLists";
 
 export default function ProductUtilityButtons({ product, compact = false }) {
   const [saved, setSaved] = useState(false);
-  const [compared, setCompared] = useState(false);
 
   useEffect(() => {
     const sync = () => {
       setSaved(isProductInList("wishlist", product.id));
-      setCompared(isProductInList("compare", product.id));
     };
     sync();
     window.addEventListener("storage", sync);
@@ -27,13 +25,6 @@ export default function ProductUtilityButtons({ product, compact = false }) {
         onClick={() => setSaved(toggleProductInList("wishlist", product))}
       >
         {saved ? "Saved" : "Save"}
-      </button>
-      <button
-        type="button"
-        aria-pressed={compared}
-        onClick={() => setCompared(toggleProductInList("compare", product))}
-      >
-        {compared ? "Comparing" : "Compare"}
       </button>
     </div>
   );

@@ -4,7 +4,6 @@ export default function AboutPage() {
       <section className="page-hero">
         <div className="site-shell page-hero-grid">
           <div>
-            <p className="page-kicker">About us page</p>
             <h1>More than buying a product online.</h1>
           </div>
         </div>
@@ -61,10 +60,37 @@ export default function AboutPage() {
               </div>
             </div>
           </article>
+        </div>
+      </section>
 
-          <article className="about-panel">
+      <section className="section">
+        <div className="site-shell teaser-grid about-teaser-grid">
+          <article className="teaser-panel">
             <p className="section-kicker">Why the business exists</p>
-            <h2>To stay accountable for the room after the click.</h2>
+            <h2>Lighting should feel guided, not guessed.</h2>
+            <p className="teaser-copy">
+              Light-Pro started as a lighting company in 1990 and built Light + Form Concepts around a simple idea:
+              choosing light well requires context. The right fixture depends on mood, installation conditions,
+              maintenance expectations, and how the room actually lives.
+            </p>
+            <div className="teaser-stat-row">
+              <div>
+                <span className="teaser-stat-value">1990</span>
+                <span className="teaser-stat-label">Lighting roots that predate the current catalog.</span>
+              </div>
+              <div>
+                <span className="teaser-stat-value">2011</span>
+                <span className="teaser-stat-label">
+                  Expanded into blinds, curtains, upholstery, and complementary furnishing support.
+                </span>
+              </div>
+              <div>
+                <span className="teaser-stat-value">After</span>
+                <span className="teaser-stat-label">
+                  Installation, rewiring, fabrication, maintenance, and cleaning remain part of the conversation.
+                </span>
+              </div>
+            </div>
           </article>
         </div>
       </section>

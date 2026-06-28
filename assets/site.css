@@ -222,7 +222,8 @@ button {
   letter-spacing: 0.12em;
 }
 
-.cart-toggle {
+.cart-toggle,
+.wishlist-toggle {
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-strong) 70%, transparent);
@@ -234,7 +235,8 @@ button {
   text-transform: uppercase;
 }
 
-.cart-toggle span {
+.cart-toggle span,
+.wishlist-toggle span {
   display: inline-grid;
   place-items: center;
   min-width: 22px;
@@ -1022,6 +1024,14 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   position: fixed;
   inset: 0;
   z-index: 80;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.cart-layer.is-open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .cart-backdrop {
@@ -1029,6 +1039,12 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   inset: 0;
   border: 0;
   background: rgba(15, 12, 10, 0.34);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.cart-layer.is-open .cart-backdrop {
+  opacity: 1;
 }
 
 .cart-drawer {
@@ -1045,6 +1061,19 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   background: var(--bg-elevated);
   color: var(--text);
   box-shadow: -24px 0 80px rgba(18, 14, 10, 0.18);
+  transform: translateX(100%);
+  transition: transform 260ms ease;
+}
+
+.cart-layer.is-open .cart-drawer {
+  transform: translateX(0);
+}
+
+.saved-drawer {
+  right: auto;
+  left: 0;
+  box-shadow: 24px 0 80px rgba(18, 14, 10, 0.18);
+  transform: translateX(-100%);
 }
 
 .cart-head,
@@ -1173,6 +1202,10 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 
 .teaser-grid {
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr);
+}
+
+.teaser-grid > :only-child {
+  grid-column: 1 / -1;
 }
 
 .teaser-panel,
@@ -1325,6 +1358,10 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   background: color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
+.hero + .brand-rail {
+  margin-top: clamp(12px, 1.8vw, 22px);
+}
+
 .brand-rail-track {
   display: flex;
   width: max-content;
@@ -1407,7 +1444,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 }
 
 .product-utility button,
-.quick-view-close {
+.product-actions .product-action {
   border: 1px solid var(--line-strong);
   background: transparent;
   color: var(--text);
@@ -1416,6 +1453,14 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.product-actions .product-action {
+  cursor: pointer;
+}
+
+.product-actions .product-action::after {
+  content: none;
 }
 
 .product-utility button[aria-pressed="true"] {
@@ -1435,53 +1480,6 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   gap: 10px;
 }
 
-.quick-view-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(25, 18, 12, 0.38);
-}
-
-.quick-view {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1fr);
-  gap: 28px;
-  width: min(920px, 100%);
-  max-height: min(760px, calc(100vh - 40px));
-  overflow: auto;
-  border: 1px solid var(--line-strong);
-  background: var(--bg);
-  box-shadow: var(--shadow-soft);
-  padding: 24px;
-}
-
-.quick-view-close {
-  grid-column: 1 / -1;
-  justify-self: end;
-}
-
-.quick-view-media {
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-}
-
-.quick-view-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.quick-view-copy {
-  display: grid;
-  align-content: center;
-  gap: 16px;
-}
-
-.quick-view-copy h2,
 .contact-card h2,
 .policy-panel h2 {
   margin: 0;
@@ -1538,10 +1536,6 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .product-specs dd {
   margin: 0;
   color: var(--text);
-}
-
-.product-description {
-  color: var(--text-soft);
 }
 
 .product-related-head {
@@ -2319,8 +2313,7 @@ html[data-theme="warm"] .staff-cart-form select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .contact-grid,
-  .quick-view {
+  .contact-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2513,10 +2506,6 @@ html[data-theme="warm"] .staff-cart-form select {
   .product-specs div {
     grid-template-columns: 1fr;
     gap: 4px;
-  }
-
-  .quick-view {
-    padding: 18px;
   }
 
   .project-grid,

@@ -109,11 +109,6 @@ export default function ShopPage({ products, productConnection, availableFilters
       <section className="section">
         <div className="site-shell">
           <CategoryRail activeHandle={activeCategoryHandle} />
-          {collection.missing && (
-            <p className="shop-collection-note">
-              Collection pending in Shopify. Showing searchable catalog until the collection is published.
-            </p>
-          )}
           <form className="shop-filter-bar" method="get">
             <label className="shop-search-field">
               <span>Search</span>

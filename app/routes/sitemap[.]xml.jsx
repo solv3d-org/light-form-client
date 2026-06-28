@@ -75,8 +75,6 @@ export async function loader({ context, request }) {
     urlEntry(origin, "/services"),
     urlEntry(origin, "/about"),
     urlEntry(origin, "/contact"),
-    urlEntry(origin, "/wishlist"),
-    urlEntry(origin, "/compare"),
     urlEntry(origin, "/shipping-info"),
     urlEntry(origin, "/refund-policy"),
     urlEntry(origin, "/terms-of-service"),

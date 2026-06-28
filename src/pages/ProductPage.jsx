@@ -223,12 +223,6 @@ function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
                 ))}
               </dl>
             )}
-            {shopifyProduct.descriptionHtml && (
-              <div
-                className="standard-content product-description"
-                dangerouslySetInnerHTML={{ __html: shopifyProduct.descriptionHtml }}
-              />
-            )}
           </div>
         </div>
       </section>

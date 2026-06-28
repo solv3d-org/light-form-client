@@ -939,7 +939,7 @@ function StaffCart({ staff, cart, isOpen, onClose, onQuantity, onRemove, onItemC
   if (!isOpen) return null;
 
   return (
-    <div className="cart-layer" role="presentation">
+    <div className="cart-layer is-open" role="presentation">
       <button className="cart-backdrop" type="button" aria-label="Close cart" onClick={onClose}></button>
       <aside className="cart-drawer staff-cart-panel" aria-label="Staff cart">
       <div className="cart-head">

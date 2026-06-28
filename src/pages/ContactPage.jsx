@@ -8,7 +8,6 @@ export default function ContactPage() {
       <section className="page-hero">
         <div className="site-shell page-hero-grid">
           <div>
-            <p className="page-kicker">Contact</p>
             <h1>Start with the showroom.</h1>
           </div>
           <aside className="page-hero-aside">

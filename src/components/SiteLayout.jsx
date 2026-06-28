@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useOptimisticCart } from "@shopify/hydrogen";
 import { Link, NavLink, useLocation, useRouteLoaderData } from "react-router";
 import { useCartDrawer } from "../context/CartDrawerContext";
+import { readProductList } from "../lib/localProductLists";
 import CartDrawer from "./CartDrawer";
+import WishlistDrawer from "./WishlistDrawer";
 
 const pages = [
   { id: "home", label: "Home", href: "/" },
@@ -25,9 +27,7 @@ const footerLinks = [
   { label: "Shop", href: "/shop" },
   { label: "Projects", href: "/gallery" },
   { label: "Services", href: "/services" },
-  { label: "About Us", href: "/about" },
-  { label: "Wishlist", href: "/wishlist" },
-  { label: "Compare", href: "/compare" }
+  { label: "About Us", href: "/about" }
 ];
 
 const policyLinks = [
@@ -40,13 +40,31 @@ const policyLinks = [
 function HeaderCartButton() {
   const rootData = useRouteLoaderData("root");
   const cart = useOptimisticCart(rootData?.cart);
-  const { openCart } = useCartDrawer();
-  if (!rootData?.shopifyConfigured) return null;
+  const { openCart, openWishlist } = useCartDrawer();
+  const [wishlistCount, setWishlistCount] = useState(0);
+
+  useEffect(() => {
+    const sync = () => setWishlistCount(readProductList("wishlist").length);
+    sync();
+    window.addEventListener("storage", sync);
+    window.addEventListener("lightform:product-list", sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener("lightform:product-list", sync);
+    };
+  }, []);
 
   return (
-    <button className="cart-toggle" type="button" onClick={openCart}>
-      Cart <span>{cart?.totalQuantity || 0}</span>
-    </button>
+    <>
+      <button className="wishlist-toggle" type="button" onClick={openWishlist}>
+        Wishlist <span>{wishlistCount}</span>
+      </button>
+      {rootData?.shopifyConfigured && (
+        <button className="cart-toggle" type="button" onClick={openCart}>
+          Cart <span>{cart?.totalQuantity || 0}</span>
+        </button>
+      )}
+    </>
   );
 }
 
@@ -131,6 +149,7 @@ export default function SiteLayout({ pageTitle, children }) {
       </header>
 
       {children}
+      <WishlistDrawer />
       <CartDrawer />
 
       <footer className="site-footer">

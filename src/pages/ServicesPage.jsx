@@ -4,7 +4,6 @@ export default function ServicesPage() {
       <section className="page-hero">
         <div className="site-shell page-hero-grid">
           <div>
-            <p className="page-kicker">Services page</p>
             <h1>A simple line through the room.</h1>
           </div>
         </div>

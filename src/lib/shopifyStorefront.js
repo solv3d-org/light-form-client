@@ -212,8 +212,6 @@ const PRODUCT_QUERY = `#graphql
       title
       vendor
       handle
-      description
-      descriptionHtml
       productType
       availableForSale
       encodedVariantExistence

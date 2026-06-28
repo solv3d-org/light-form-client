@@ -4,13 +4,23 @@ const CartDrawerContext = createContext(null);
 
 export function CartDrawerProvider({ children }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const value = useMemo(
     () => ({
       isCartOpen,
+      isWishlistOpen,
       closeCart: () => setIsCartOpen(false),
-      openCart: () => setIsCartOpen(true)
+      closeWishlist: () => setIsWishlistOpen(false),
+      openCart: () => {
+        setIsWishlistOpen(false);
+        setIsCartOpen(true);
+      },
+      openWishlist: () => {
+        setIsCartOpen(false);
+        setIsWishlistOpen(true);
+      }
     }),
-    [isCartOpen]
+    [isCartOpen, isWishlistOpen]
   );
 
   return <CartDrawerContext.Provider value={value}>{children}</CartDrawerContext.Provider>;

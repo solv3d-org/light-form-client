@@ -29,14 +29,14 @@ export default function CartDrawer() {
   const fetchers = useFetchers();
   const isUpdating = fetchers.some((fetcher) => fetcher.formAction === "/cart" && fetcher.state !== "idle");
 
-  if (!isCartOpen || !rootData?.shopifyConfigured) return null;
+  if (!rootData?.shopifyConfigured) return null;
 
   const lines = cart?.lines?.nodes || [];
 
   return (
-    <div className="cart-layer" role="presentation">
+    <div className={`cart-layer${isCartOpen ? " is-open" : ""}`} role="presentation">
       <button className="cart-backdrop" type="button" aria-label="Close cart" onClick={closeCart}></button>
-      <aside className="cart-drawer" aria-label="Cart">
+      <aside className="cart-drawer" aria-label="Cart" aria-hidden={!isCartOpen}>
         <div className="cart-head">
           <div>
             <p className="section-kicker">Cart</p>

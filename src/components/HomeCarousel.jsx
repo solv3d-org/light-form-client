@@ -11,7 +11,6 @@ export default function HomeCarousel({ products, catalogMetadata, catalogStatus 
   const [pageCount, setPageCount] = useState(1);
   const [canScrollPrevious, setCanScrollPrevious] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
-  const sourceLabel = catalogStatus === "loading" ? "Loading catalog" : catalogMetadata.sourceLabel || "Product catalog";
 
   useEffect(() => {
     const track = trackRef.current;
@@ -72,11 +71,7 @@ export default function HomeCarousel({ products, catalogMetadata, catalogStatus 
     <div className="carousel-shell" role="region" aria-label="Selected products carousel" aria-roledescription="carousel">
       <div className="carousel-head">
         <div className="section-copy">
-          <p className="section-kicker">{sourceLabel}</p>
           <h2 className="section-title">Latest pieces for the room.</h2>
-          <p className="section-body">
-            Showing {carouselProducts.length} selected products from a catalog of {catalogMetadata.productCount}.
-          </p>
         </div>
         <div className="carousel-meta">
           <button

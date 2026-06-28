@@ -1,6 +1,5 @@
 const LIST_KEYS = {
-  wishlist: "lightform:wishlist",
-  compare: "lightform:compare"
+  wishlist: "lightform:wishlist"
 };
 
 export function productListKey(listName) {

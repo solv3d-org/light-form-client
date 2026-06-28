@@ -80,12 +80,6 @@ type Pages = {
   "/services": {
     params: {};
   };
-  "/wishlist": {
-    params: {};
-  };
-  "/compare": {
-    params: {};
-  };
   "/contact": {
     params: {};
   };
@@ -124,7 +118,7 @@ type Pages = {
 type RouteFiles = {
   "root.jsx": {
     id: "root";
-    page: "/" | "/collections/:collectionHandle" | "/account/orders/:orderId" | "/projects/:projectHandle" | "/policies/:policyHandle" | "/collections" | "/terms-of-service-2" | "/account/authorize" | "/pages/:pageHandle" | "/products/:handle" | "/terms-of-service" | "/account" | "/privacy-policy" | "/account/login" | "/refund-policy" | "/shipping-info" | "/sitemap.xml" | "/robots.txt" | "/services" | "/wishlist" | "/compare" | "/contact" | "/gallery" | "/health" | "/search" | "/about" | "/staff" | "/cart" | "/shop" | "/graphiql" | "/subrequest-profiler" | "/.well-known/appspecific/com.chrome.devtools.json";
+    page: "/" | "/collections/:collectionHandle" | "/account/orders/:orderId" | "/projects/:projectHandle" | "/policies/:policyHandle" | "/collections" | "/terms-of-service-2" | "/account/authorize" | "/pages/:pageHandle" | "/products/:handle" | "/terms-of-service" | "/account" | "/privacy-policy" | "/account/login" | "/refund-policy" | "/shipping-info" | "/sitemap.xml" | "/robots.txt" | "/services" | "/contact" | "/gallery" | "/health" | "/search" | "/about" | "/staff" | "/cart" | "/shop" | "/graphiql" | "/subrequest-profiler" | "/.well-known/appspecific/com.chrome.devtools.json";
   };
   "routes/collections.$collectionHandle.jsx": {
     id: "routes/collections.$collectionHandle";
@@ -197,14 +191,6 @@ type RouteFiles = {
   "routes/services.jsx": {
     id: "routes/services";
     page: "/services";
-  };
-  "routes/wishlist.jsx": {
-    id: "routes/wishlist";
-    page: "/wishlist";
-  };
-  "routes/compare.jsx": {
-    id: "routes/compare";
-    page: "/compare";
   };
   "routes/contact.jsx": {
     id: "routes/contact";
@@ -284,8 +270,6 @@ type RouteModules = {
   "routes/sitemap[.]xml": typeof import("./app/routes/sitemap[.]xml.jsx");
   "routes/robots[.]txt": typeof import("./app/routes/robots[.]txt.jsx");
   "routes/services": typeof import("./app/routes/services.jsx");
-  "routes/wishlist": typeof import("./app/routes/wishlist.jsx");
-  "routes/compare": typeof import("./app/routes/compare.jsx");
   "routes/contact": typeof import("./app/routes/contact.jsx");
   "routes/gallery": typeof import("./app/routes/gallery.jsx");
   "routes/_index": typeof import("./app/routes/_index.jsx");
