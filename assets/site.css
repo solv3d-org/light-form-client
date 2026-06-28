@@ -2269,6 +2269,11 @@ html[data-theme="warm"] .staff-cart-form select {
   overflow-wrap: anywhere;
 }
 
+.staff-invoice-side .staff-info-list div {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
 .staff-info-list a {
   color: var(--accent);
   font-weight: 800;
