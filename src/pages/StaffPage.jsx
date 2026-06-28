@@ -75,9 +75,71 @@ function moneyLabel(value) {
   return new Intl.NumberFormat("en-SG", { style: "currency", currency: "SGD" }).format(amount);
 }
 
+function dateTimeLabel(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-SG", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(date);
+}
+
 function toMoneyNumber(value) {
   const amount = Number(value);
   return Number.isFinite(amount) ? amount : 0;
+}
+
+function hasDisplayValue(value) {
+  return value !== undefined && value !== null && value !== "";
+}
+
+function orderDisplayName(order) {
+  return order.shopifyDraftOrderName || order.shopifyOrderName || order.id;
+}
+
+function sourceLabel(order) {
+  return order.source === "shopify-order" ? "Shopify order" : "IMS draft";
+}
+
+function orderTotalLabel(order, shopifyDraftOrder = null) {
+  const total = order.internal?.totalPrice || shopifyDraftOrder?.totalPrice || "";
+  return total ? moneyLabel(total) : "";
+}
+
+function statusClass(value) {
+  return String(value || "pending").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function orderSearchText(order) {
+  return [
+    orderDisplayName(order),
+    sourceLabel(order),
+    order.status,
+    order.customer?.email,
+    order.customer?.name,
+    order.fulfillment?.type,
+    order.createdAt,
+    order.shopifyDraftOrderId,
+    order.shopifyOrderName,
+    order.shopifyOrderId
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function lineUnitPrice(item) {
+  return item.priceOverride || item.price || "";
+}
+
+function lineTotalLabel(item) {
+  const price = toMoneyNumber(lineUnitPrice(item));
+  const quantity = Number(item.quantity || 1);
+  return moneyLabel(price * (Number.isFinite(quantity) ? quantity : 1));
 }
 
 function readReceiptFile(file) {
@@ -101,6 +163,23 @@ function lineDiscount(item) {
 function lineTotal(item) {
   const price = toMoneyNumber(item.price);
   return Math.max(0, price - lineDiscount(item)) * item.quantity;
+}
+
+function StaffLoadingPanel({ title = "Starting staff session", detail = "Connecting to Staff IMS." }) {
+  return (
+    <main className="staff-page">
+      <section className="staff-loading-shell">
+        <div className="staff-panel staff-loading-card">
+          <p className="section-kicker">Staff IMS</p>
+          <h1>{title}</h1>
+          <div className="staff-loading-track" aria-hidden="true">
+            <span></span>
+          </div>
+          <p>{detail}</p>
+        </div>
+      </section>
+    </main>
+  );
 }
 
 function hasStaffPermission(staff, permission) {
@@ -164,6 +243,8 @@ function LoginPanel({ onLogin }) {
       setStatus("idle");
     }
   };
+
+  if (status === "loading") return <StaffLoadingPanel />;
 
   return (
     <main className="staff-page">
@@ -936,12 +1017,10 @@ function StaffCart({ staff, cart, isOpen, onClose, onQuantity, onRemove, onItemC
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="cart-layer is-open" role="presentation">
+    <div className={`cart-layer${isOpen ? " is-open" : ""}`} role="presentation" aria-hidden={!isOpen}>
       <button className="cart-backdrop" type="button" aria-label="Close cart" onClick={onClose}></button>
-      <aside className="cart-drawer staff-cart-panel" aria-label="Staff cart">
+      <aside className="cart-drawer staff-cart-panel" aria-label="Staff cart" aria-hidden={!isOpen}>
       <div className="cart-head">
         <div>
           <p className="section-kicker">Cart</p>
@@ -1174,93 +1253,165 @@ function orderPaymentRows(order) {
 }
 
 function orderInternalRows(order) {
+  const hasApproval = Object.prototype.hasOwnProperty.call(order.internal || {}, "approvalRequired");
   return [
+    ["Source name", order.internal?.sourceName],
     ["Supplier", order.internal?.supplier],
     ["Stockroom bin", order.internal?.stockroomBin],
-    ["Approval required", order.internal?.approvalRequired ? "yes" : "no"],
+    ["Approval required", hasApproval ? (order.internal.approvalRequired ? "yes" : "no") : ""],
     ["Cost price", order.internal?.costPrice],
     ["Gross margin", order.internal?.grossMargin],
     ["Ops notes", order.internal?.opsNotes],
     ["Created by", order.createdBy?.email],
-    ["Invoice sent", order.invoiceSentAt],
-    ["Completed", order.completedAt],
-    ["Canceled", order.canceledAt]
-  ].filter(([, value]) => value !== undefined && value !== null && value !== "");
+    ["Invoice sent", dateTimeLabel(order.invoiceSentAt)],
+    ["Completed", dateTimeLabel(order.completedAt)],
+    ["Canceled", dateTimeLabel(order.canceledAt)]
+  ].filter(([, value]) => hasDisplayValue(value));
+}
+
+function orderCustomerRows(order) {
+  return [
+    ["Email", order.customer?.email || "No email"],
+    ["Name", order.customer?.name],
+    ["Customer ID", order.customer?.customerId]
+  ].filter(([, value]) => hasDisplayValue(value));
+}
+
+function orderFulfillmentRows(order) {
+  const fulfillment = order.fulfillment || {};
+  const address = order.shippingAddress || fulfillment.shippingAddress || {};
+  return [
+    ["Type", fulfillment.type || "pickup"],
+    ["Delivery date", fulfillment.deliveryDate || (fulfillment.dateTba ? "TBA" : "")],
+    ["Financial status", fulfillment.financialStatus],
+    ["Fulfillment status", fulfillment.fulfillmentStatus],
+    ["Address", [address.address1, address.address2, address.city, address.country, address.zip].filter(Boolean).join(", ")],
+    ["Phone", address.phone]
+  ].filter(([, value]) => hasDisplayValue(value));
+}
+
+function orderShopifyRows(order, shopifyDraftOrder) {
+  const invoiceUrl = order.shopifyInvoiceUrl || shopifyDraftOrder?.invoiceUrl || "";
+  return [
+    ["Draft", order.shopifyDraftOrderName || shopifyDraftOrder?.name],
+    ["Draft ID", order.shopifyDraftOrderId || shopifyDraftOrder?.id],
+    ["Draft status", shopifyDraftOrder?.status],
+    ["Invoice", invoiceUrl ? <a href={invoiceUrl} target="_blank" rel="noreferrer">Open invoice</a> : ""],
+    ["Order", order.shopifyOrderName || order.shopifyOrderId || shopifyDraftOrder?.orderId],
+    ["Updated", dateTimeLabel(order.updatedAt)]
+  ].filter(([, value]) => hasDisplayValue(value));
+}
+
+function StaffInfoRows({ rows, empty = "No details." }) {
+  if (!rows.length) return <p className="staff-muted">{empty}</p>;
+  return (
+    <dl className="staff-info-list">
+      {rows.map(([label, value]) => (
+        <div key={label}>
+          <dt>{label}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function OrderLineItems({ lineItems }) {
+  if (!lineItems.length) return <p className="staff-muted">No line items.</p>;
+  return (
+    <div className="staff-invoice-lines">
+      {lineItems.map((item, index) => (
+        <article className="staff-invoice-line" key={`${item.variantId || item.id || item.title}-${index}`}>
+          <div>
+            <strong>{item.title || "Line item"}</strong>
+            <span>{item.sku || item.variantId || "No SKU"}</span>
+            {item.description && <small>{item.description}</small>}
+            {item.appliedDiscount && (
+              <small>
+                Discount {item.appliedDiscount.valueType || item.appliedDiscount.value_type} {item.appliedDiscount.value}
+              </small>
+            )}
+          </div>
+          <div className="staff-invoice-line-total">
+            <span>Qty {item.quantity || 1}</span>
+            <strong>{moneyLabel(lineUnitPrice(item)) || "$0.00"}</strong>
+            <small>{lineTotalLabel(item) || "$0.00"}</small>
+          </div>
+        </article>
+      ))}
+    </div>
+  );
 }
 
 function OrderDetailPanel({ order, shopifyDraftOrder, onClose }) {
   const lineItems = order.internal?.lineItems || shopifyDraftOrder?.lineItems || [];
+  const total = orderTotalLabel(order, shopifyDraftOrder);
   return (
-    <section className="staff-panel staff-order-detail">
-      <div className="staff-panel-head">
+    <section className="staff-panel staff-order-detail staff-invoice-detail">
+      <div className="staff-invoice-titlebar">
         <div>
           <p className="section-kicker">Invoice detail</p>
-          <h2>{order.shopifyDraftOrderName || order.shopifyOrderName || order.id}</h2>
+          <h2>{orderDisplayName(order)}</h2>
+          <div className="staff-invoice-meta">
+            <span className={`staff-status-badge is-${statusClass(order.status)}`}>{order.status || "pending"}</span>
+            <span>{sourceLabel(order)}</span>
+            <span>{dateTimeLabel(order.createdAt)}</span>
+          </div>
         </div>
         <button className="button-inline" type="button" onClick={onClose}>
           Back to orders
         </button>
       </div>
-      <dl className="staff-detail-grid">
-        {[
-          ["Status", order.status],
-          ["Source", order.source === "shopify-order" ? "Shopify order" : "IMS draft"],
-          ["Customer", order.customer?.email || "No email"],
-          ["Fulfillment", order.fulfillment?.type || "pickup"],
-          ["Financial", order.fulfillment?.financialStatus],
-          ["Fulfillment status", order.fulfillment?.fulfillmentStatus],
-          ["Shopify draft", order.shopifyDraftOrderId],
-          ["Shopify order", order.shopifyOrderName || order.shopifyOrderId],
-          ["Invoice URL", order.shopifyInvoiceUrl],
-          ["Created", order.createdAt],
-          ["Updated", order.updatedAt],
-          ["Total", order.internal?.totalPrice ? moneyLabel(order.internal.totalPrice) : shopifyDraftOrder?.totalPrice ? moneyLabel(shopifyDraftOrder.totalPrice) : ""]
-        ]
-          .filter(([, value]) => value !== undefined && value !== null && value !== "")
-          .map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{String(value)}</dd>
+      <div className="staff-invoice-layout">
+        <div className="staff-invoice-main">
+          <article className="staff-invoice-card">
+            <div className="staff-card-head">
+              <div>
+                <p className="section-kicker">Products</p>
+                <h3>Line items</h3>
+              </div>
+              {total && (
+                <div className="staff-invoice-total">
+                  <span>Total</span>
+                  <strong>{total}</strong>
+                </div>
+              )}
             </div>
-          ))}
-      </dl>
-      <div className="staff-detail-section">
-        <p className="section-kicker">Payment</p>
-        <dl className="staff-detail-grid">
-          {orderPaymentRows(order).map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{String(value)}</dd>
+            <OrderLineItems lineItems={lineItems} />
+          </article>
+          <article className="staff-invoice-card">
+            <div className="staff-card-head">
+              <div>
+                <p className="section-kicker">Payment</p>
+                <h3>Collection</h3>
+              </div>
             </div>
-          ))}
-        </dl>
-      </div>
-      <div className="staff-detail-section">
-        <p className="section-kicker">Line items</p>
-        <div className="staff-order-line-list">
-          {lineItems.map((item, index) => (
-            <article className="staff-order-line" key={`${item.variantId || item.id || item.title}-${index}`}>
-              <strong>{item.title || "Line item"}</strong>
-              <span>
-                {item.sku || item.variantId || "No SKU"} · qty {item.quantity || 1} · {moneyLabel(item.price || 0)}
-              </span>
-              {item.priceOverride && <small>Override {moneyLabel(item.priceOverride)}</small>}
-              {item.appliedDiscount && <small>Discount {item.appliedDiscount.valueType || item.appliedDiscount.value_type} {item.appliedDiscount.value}</small>}
-              {item.description && <small>{item.description}</small>}
-            </article>
-          ))}
+            <StaffInfoRows rows={orderPaymentRows(order)} empty="No payment details." />
+          </article>
+          <article className="staff-invoice-card">
+            <div className="staff-card-head">
+              <div>
+                <p className="section-kicker">Fulfillment</p>
+                <h3>Handoff</h3>
+              </div>
+            </div>
+            <StaffInfoRows rows={orderFulfillmentRows(order)} />
+          </article>
         </div>
-      </div>
-      <div className="staff-detail-section">
-        <p className="section-kicker">Internal</p>
-        <dl className="staff-detail-grid">
-          {orderInternalRows(order).map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{String(value)}</dd>
-            </div>
-          ))}
-        </dl>
+        <aside className="staff-invoice-side">
+          <article className="staff-invoice-card">
+            <p className="section-kicker">Customer</p>
+            <StaffInfoRows rows={orderCustomerRows(order)} />
+          </article>
+          <article className="staff-invoice-card">
+            <p className="section-kicker">Shopify</p>
+            <StaffInfoRows rows={orderShopifyRows(order, shopifyDraftOrder)} empty="No Shopify detail." />
+          </article>
+          <article className="staff-invoice-card">
+            <p className="section-kicker">Internal</p>
+            <StaffInfoRows rows={orderInternalRows(order)} empty="No internal notes." />
+          </article>
+        </aside>
       </div>
     </section>
   );
@@ -1269,6 +1420,7 @@ function OrderDetailPanel({ order, shopifyDraftOrder, onClose }) {
 function OrdersPanel({ staff, refreshKey }) {
   const [tab, setTab] = useState("pending");
   const [orders, setOrders] = useState([]);
+  const [filterText, setFilterText] = useState("");
   const [warnings, setWarnings] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [shopifyDraftOrder, setShopifyDraftOrder] = useState(null);
@@ -1295,6 +1447,12 @@ function OrdersPanel({ staff, refreshKey }) {
   useEffect(() => {
     loadOrders();
   }, [tab, refreshKey]);
+
+  const visibleOrders = useMemo(() => {
+    const query = filterText.trim().toLowerCase();
+    if (!query) return orders;
+    return orders.filter((order) => orderSearchText(order).includes(query));
+  }, [filterText, orders]);
 
   const handleInvoice = async (orderId) => {
     setActionStatus(orderId);
@@ -1353,10 +1511,10 @@ function OrdersPanel({ staff, refreshKey }) {
 
   return (
     <section className="staff-panel staff-orders">
-      <div className="staff-panel-head">
+      <div className="staff-orders-titlebar">
         <div>
           <p className="section-kicker">Orders</p>
-          <h2>{tab === "pending" ? "Pending" : "Completed"}</h2>
+          <h2>{tab === "pending" ? "Open drafts" : "Completed orders"}</h2>
         </div>
         <div className="staff-segmented">
           <button type="button" className={tab === "pending" ? "is-active" : ""} onClick={() => setTab("pending")}>
@@ -1367,46 +1525,78 @@ function OrdersPanel({ staff, refreshKey }) {
           </button>
         </div>
       </div>
+      <div className="staff-orders-toolbar">
+        <span className="staff-orders-scope">All</span>
+        <label className="staff-orders-search">
+          <span>Search</span>
+          <input value={filterText} onChange={(event) => setFilterText(event.target.value)} placeholder="Search orders" />
+        </label>
+      </div>
       {error && <p className="staff-error">{error}</p>}
       {warnings.map((warning) => (
         <p className="staff-muted" key={warning}>{warning}</p>
       ))}
       {status === "loading" && <p className="staff-muted">Loading orders.</p>}
-      <div className="staff-order-list">
-        {orders.map((order) => (
-          <article className="staff-order" key={order.id}>
-            <button className="staff-order-summary" type="button" onClick={() => handleSelectOrder(order.id)}>
-              <strong>{order.shopifyDraftOrderName || order.shopifyOrderName || order.id}</strong>
-              <span>{order.customer?.email || "No email"} · {order.fulfillment?.type || "pickup"}</span>
-              {order.source === "shopify-order" && (
-                <small>
-                  Shopify · {order.fulfillment?.financialStatus || "payment"} · {order.fulfillment?.fulfillmentStatus || "fulfillment"}
-                  {order.internal?.totalPrice ? ` · ${moneyLabel(order.internal.totalPrice)}` : ""}
-                </small>
-              )}
-              {order.internal?.payment?.split && (
-                <small>
-                  Balance {moneyLabel(order.internal.payment.balanceDue)} · collect {order.internal.payment.balanceCollectionDate || "TBA"}
-                </small>
-              )}
-              <small>{order.createdAt}</small>
-            </button>
-            {tab === "pending" && order.source !== "shopify-order" && (canSendInvoice || canCompleteOrder) && (
-              <div className="staff-order-actions">
-                {canSendInvoice && (
-                  <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleInvoice(order.id)}>
-                    Invoice
-                  </button>
-                )}
-                {canCompleteOrder && (
-                  <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleComplete(order.id)}>
-                    Complete
-                  </button>
-                )}
-              </div>
+      <div className="staff-orders-table-wrap">
+        <table className="staff-orders-table">
+          <thead>
+            <tr>
+              <th>Draft order</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Fulfillment</th>
+              <th>Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleOrders.map((order) => {
+              const total = orderTotalLabel(order);
+              return (
+                <tr key={order.id}>
+                  <td>
+                    <button className="staff-order-id-button" type="button" disabled={actionStatus === order.id} onClick={() => handleSelectOrder(order.id)}>
+                      {orderDisplayName(order)}
+                    </button>
+                    <span className="staff-table-muted">{sourceLabel(order)}</span>
+                  </td>
+                  <td>{dateTimeLabel(order.createdAt) || "-"}</td>
+                  <td>{order.customer?.email || order.customer?.name || "No customer"}</td>
+                  <td>
+                    <span className={`staff-status-badge is-${statusClass(order.status)}`}>{order.status || "pending"}</span>
+                  </td>
+                  <td>{order.fulfillment?.type || "pickup"}</td>
+                  <td>{total || "-"}</td>
+                  <td>
+                    <div className="staff-actions-inline">
+                      {tab === "pending" && order.source !== "shopify-order" && canSendInvoice && (
+                        <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleInvoice(order.id)}>
+                          Invoice
+                        </button>
+                      )}
+                      {tab === "pending" && order.source !== "shopify-order" && canCompleteOrder && (
+                        <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleComplete(order.id)}>
+                          Complete
+                        </button>
+                      )}
+                      {(tab !== "pending" || order.source === "shopify-order" || (!canSendInvoice && !canCompleteOrder)) && (
+                        <button className="button-inline" type="button" disabled={actionStatus === order.id} onClick={() => handleSelectOrder(order.id)}>
+                          View
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {!visibleOrders.length && (
+              <tr>
+                <td className="staff-table-empty" colSpan="7">No orders.</td>
+              </tr>
             )}
-          </article>
-        ))}
+          </tbody>
+        </table>
       </div>
     </section>
   );
@@ -1568,11 +1758,7 @@ export default function StaffPage() {
   };
 
   if (authStatus === "checking") {
-    return (
-      <main className="staff-page">
-        <section className="site-shell staff-loading">Checking staff session.</section>
-      </main>
-    );
+    return <StaffLoadingPanel title="Checking staff session" detail="Restoring Staff IMS access." />;
   }
 
   if (!staff) return <LoginPanel onLogin={setStaff} />;

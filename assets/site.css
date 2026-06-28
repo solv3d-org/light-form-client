@@ -1685,6 +1685,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-cart-form select,
 .staff-cart-form textarea,
 .staff-search input,
+.staff-orders-search input,
 .staff-product-edit input,
 .staff-stock-form input,
 .staff-user-form input,
@@ -1705,6 +1706,7 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 .staff-cart-form input::placeholder,
 .staff-cart-form textarea::placeholder,
 .staff-search input::placeholder,
+.staff-orders-search input::placeholder,
 .staff-product-edit input::placeholder,
 .staff-user-form input::placeholder,
 .staff-user-controls input::placeholder {
@@ -1743,9 +1745,59 @@ html[data-theme="warm"] .staff-cart-form select {
   color: var(--text-soft);
 }
 
-.staff-loading {
+.staff-loading-shell {
+  min-height: calc(100vh - 84px);
   padding: 72px 0;
+  display: grid;
+  place-items: start center;
+}
+
+.staff-loading-card {
+  display: grid;
+  gap: 16px;
+  width: min(520px, calc(100vw - 32px));
+}
+
+.staff-loading-card h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 4vw, 4rem);
+  font-weight: 500;
+  line-height: 0.98;
+}
+
+.staff-loading-card p:last-child {
+  margin: 0;
   color: var(--text-soft);
+}
+
+.staff-loading-track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--bg-elevated) 80%, var(--surface));
+}
+
+.staff-loading-track span {
+  position: absolute;
+  inset: 0;
+  width: 48%;
+  background: var(--accent);
+  transform-origin: left;
+  animation: staff-loading-bar 1.4s ease-in-out infinite;
+}
+
+@keyframes staff-loading-bar {
+  0% {
+    transform: translateX(-110%) scaleX(0.45);
+  }
+  45% {
+    transform: translateX(42%) scaleX(1);
+  }
+  100% {
+    transform: translateX(220%) scaleX(0.55);
+  }
 }
 
 .staff-session {
@@ -1782,7 +1834,8 @@ html[data-theme="warm"] .staff-cart-form select {
   gap: 24px;
 }
 
-.staff-panel-head {
+.staff-panel-head,
+.staff-orders-titlebar {
   display: flex;
   align-items: start;
   justify-content: space-between;
@@ -1931,6 +1984,294 @@ html[data-theme="warm"] .staff-cart-form select {
 }
 
 .staff-order-summary:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.staff-orders-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+}
+
+.staff-orders-scope {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.staff-orders-search {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 10px;
+  min-width: 0;
+  color: var(--text-soft);
+}
+
+.staff-orders-search span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.staff-orders-search input {
+  border: 0;
+  border-left: 1px solid var(--line);
+  padding: 8px 12px;
+  background: transparent;
+}
+
+.staff-orders-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+}
+
+.staff-orders-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+}
+
+.staff-orders-table th,
+.staff-orders-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.staff-orders-table th {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+
+.staff-orders-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.staff-order-id-button {
+  display: block;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.staff-order-id-button:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.staff-table-muted {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+}
+
+.staff-table-empty {
+  color: var(--text-soft);
+  text-align: center !important;
+}
+
+.staff-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.staff-status-badge.is-pending {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface));
+  color: var(--accent-contrast);
+}
+
+.staff-status-badge.is-completed {
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+}
+
+.staff-actions-inline {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.staff-invoice-detail {
+  display: grid;
+  gap: 22px;
+}
+
+.staff-invoice-titlebar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.staff-invoice-titlebar h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 4vw, 4rem);
+  font-weight: 500;
+  line-height: 0.98;
+}
+
+.staff-invoice-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--text-soft);
+}
+
+.staff-invoice-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.72fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.staff-invoice-main,
+.staff-invoice-side {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.staff-invoice-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 64%, transparent);
+}
+
+.staff-card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.staff-card-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.staff-invoice-total {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.staff-invoice-total span {
+  color: var(--text-soft);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.staff-invoice-total strong {
+  font-size: 1.25rem;
+}
+
+.staff-invoice-lines {
+  display: grid;
+  border: 1px solid var(--line);
+}
+
+.staff-invoice-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.staff-invoice-line:last-child {
+  border-bottom: 0;
+}
+
+.staff-invoice-line div:first-child,
+.staff-invoice-line-total {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.staff-invoice-line span,
+.staff-invoice-line small,
+.staff-invoice-line-total span,
+.staff-invoice-line-total small {
+  color: var(--text-soft);
+}
+
+.staff-invoice-line-total {
+  text-align: right;
+}
+
+.staff-info-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.staff-info-list div {
+  display: grid;
+  grid-template-columns: minmax(108px, 0.42fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.staff-info-list div:first-child {
+  padding-top: 0;
+}
+
+.staff-info-list div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.staff-info-list dt {
+  color: var(--text-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.staff-info-list dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.staff-info-list a {
+  color: var(--accent);
+  font-weight: 800;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -2360,6 +2701,10 @@ html[data-theme="warm"] .staff-cart-form select {
     grid-template-columns: 1fr;
   }
 
+  .staff-invoice-layout {
+    grid-template-columns: 1fr;
+  }
+
   .staff-cart-panel {
     position: static;
   }
@@ -2514,6 +2859,8 @@ html[data-theme="warm"] .staff-cart-form select {
   }
 
   .staff-panel-head,
+  .staff-orders-titlebar,
+  .staff-invoice-titlebar,
   .staff-result,
   .staff-order,
   .staff-user-row,
@@ -2537,6 +2884,21 @@ html[data-theme="warm"] .staff-cart-form select {
   .staff-line-controls,
   .staff-product-edit {
     grid-template-columns: 1fr;
+  }
+
+  .staff-orders-toolbar,
+  .staff-orders-search,
+  .staff-card-head,
+  .staff-invoice-line,
+  .staff-info-list div {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .staff-invoice-total,
+  .staff-invoice-line-total {
+    text-align: left;
   }
 }
 
