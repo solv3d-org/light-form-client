@@ -1629,6 +1629,10 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   padding: 72px 0;
 }
 
+.staff-workspace.site-shell {
+  width: min(1680px, calc(100vw - 48px));
+}
+
 .staff-login-shell {
   display: grid;
   place-items: start center;
@@ -1824,7 +1828,7 @@ html[data-theme="warm"] .staff-cart-form select {
 
 .staff-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.44fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
