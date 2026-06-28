@@ -5,3 +5,4 @@ dist/
 .shopify-import/
 .DS_Store
 .shopify/
+output/
