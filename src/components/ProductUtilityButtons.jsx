@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { isProductInList, toggleProductInList } from "../lib/localProductLists";
+import { HeartIcon } from "./Icons";
 
 export default function ProductUtilityButtons({ product, compact = false }) {
   const [saved, setSaved] = useState(false);
@@ -20,11 +21,14 @@ export default function ProductUtilityButtons({ product, compact = false }) {
   return (
     <div className={`product-utility${compact ? " product-utility-compact" : ""}`}>
       <button
+        className="icon-button"
         type="button"
+        aria-label={saved ? `Remove ${product.title} from saved products` : `Save ${product.title}`}
         aria-pressed={saved}
+        title={saved ? "Saved" : "Save"}
         onClick={() => setSaved(toggleProductInList("wishlist", product))}
       >
-        {saved ? "Saved" : "Save"}
+        <HeartIcon filled={saved} />
       </button>
     </div>
   );

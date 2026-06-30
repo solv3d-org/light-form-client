@@ -9,6 +9,7 @@ import {
 import { Link, useNavigate } from "react-router";
 import { normalizeShopifyProduct } from "../lib/shopifyStorefront";
 import { useCartDrawer } from "../context/CartDrawerContext";
+import { ShoppingBagIcon } from "../components/Icons";
 import ProductCard from "../components/ProductCard";
 import ProductImage from "../components/ProductImage";
 import ProductPrice from "../components/ProductPrice";
@@ -193,8 +194,15 @@ function ShopifyProductDetail({ shopifyProduct, storeDomain }) {
               >
                 {(fetcher) => (
                   <>
-                    <button className="button-primary" type="submit" disabled={!canAddToCart || fetcher.state !== "idle"} onClick={openCart}>
-                      {canAddToCart ? "Add to cart" : "Sold out"}
+                    <button
+                      className={`button-primary${canAddToCart ? " product-action-icon" : ""}`}
+                      type="submit"
+                      aria-label={canAddToCart ? `Add ${shopifyProduct.title} to cart` : "Sold out"}
+                      title={canAddToCart ? "Add to cart" : "Sold out"}
+                      disabled={!canAddToCart || fetcher.state !== "idle"}
+                      onClick={openCart}
+                    >
+                      {canAddToCart ? <ShoppingBagIcon /> : "Sold out"}
                     </button>
                     {getCartError(fetcher) && (
                       <p className="product-action-error" role="alert">

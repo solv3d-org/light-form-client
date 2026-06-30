@@ -70,17 +70,17 @@ function PaginationControls({ PreviousLink, NextLink, hasPreviousPage, hasNextPa
   );
 }
 
-function CategoryRail({ activeHandle }) {
+function CategoryRail({ activeHandle, categories }) {
   return (
     <nav className="category-rail" aria-label="Product categories">
       <a className={!activeHandle ? "is-active" : ""} href="/shop">
         All
       </a>
-      {legacyProductCategories.map((category) => (
+      {categories.map((category) => (
         <a
           className={activeHandle === category.handle ? "is-active" : ""}
-          href={`/collections/${category.handle}`}
-          key={category.handle}
+          href={category.href}
+          key={category.id || category.href}
         >
           {category.title}
         </a>
@@ -93,7 +93,13 @@ export default function ShopPage({ products, productConnection, availableFilters
   const filters = catalogMetadata?.filters || {};
   const connection = productConnection || { nodes: products, pageInfo: {} };
   const collection = catalogMetadata?.collection || {};
-  const activeCategoryHandle = legacyProductCategories.some((category) => category.handle === collection.handle) ? collection.handle : "";
+  const fallbackCategories = legacyProductCategories.map((category) => ({
+    ...category,
+    href: `/collections/${category.handle}`
+  }));
+  const categoryRailItems = (catalogMetadata?.categoryRail?.items || []).filter((category) => category.href !== "/shop");
+  const categories = categoryRailItems.length ? categoryRailItems : fallbackCategories;
+  const activeCategoryHandle = categories.some((category) => category.handle === collection.handle) ? collection.handle : "";
 
   return (
     <main>
@@ -108,7 +114,7 @@ export default function ShopPage({ products, productConnection, availableFilters
 
       <section className="section">
         <div className="site-shell">
-          <CategoryRail activeHandle={activeCategoryHandle} />
+          <CategoryRail activeHandle={activeCategoryHandle} categories={categories} />
           <form className="shop-filter-bar" method="get">
             <label className="shop-search-field">
               <span>Search</span>

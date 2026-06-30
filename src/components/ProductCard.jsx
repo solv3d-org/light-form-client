@@ -1,6 +1,7 @@
 import { CartForm } from "@shopify/hydrogen";
 import { Link } from "react-router";
 import { useCartDrawer } from "../context/CartDrawerContext";
+import { ShoppingBagIcon } from "./Icons";
 import ProductUtilityButtons from "./ProductUtilityButtons";
 import ProductImage from "./ProductImage";
 import ProductPrice from "./ProductPrice";
@@ -41,38 +42,36 @@ export default function ProductCard({ product, variant = "default" }) {
         )}
         <h3>{productPath ? <Link to={productPath}>{product.title}</Link> : product.title}</h3>
         <ProductPrice product={product} />
-        <ProductUtilityButtons product={product} compact={isMinimal} />
-        <div className="product-actions">
-          {canAddToCart ? (
-            <CartForm
-              route="/cart"
-              action={CartForm.ACTIONS.LinesAdd}
-              inputs={{ lines: [{ merchandiseId: product.shopifyVariantId, quantity: 1 }] }}
-            >
-              {(fetcher) => (
-                <>
-                  <button
-                    className="button-inline product-action"
-                    type="submit"
-                    disabled={fetcher.state !== "idle"}
-                    onClick={openCart}
-                  >
-                    Add to cart
-                  </button>
-                  {getCartError(fetcher) && (
-                    <p className="product-action-error" role="alert">
-                      {getCartError(fetcher)}
-                    </p>
-                  )}
-                </>
-              )}
-            </CartForm>
-          ) : (
-            product.sourceUrl && (
-              <a className="button-inline product-action" href={product.sourceUrl} target="_blank" rel="noreferrer">
-                View product
-              </a>
-            )
+        <div className="product-card-actions">
+          <ProductUtilityButtons product={product} compact={isMinimal} />
+          {canAddToCart && (
+            <div className="product-actions">
+              <CartForm
+                route="/cart"
+                action={CartForm.ACTIONS.LinesAdd}
+                inputs={{ lines: [{ merchandiseId: product.shopifyVariantId, quantity: 1 }] }}
+              >
+                {(fetcher) => (
+                  <>
+                    <button
+                      className="button-inline product-action product-action-icon"
+                      type="submit"
+                      aria-label={`Add ${product.title} to cart`}
+                      title="Add to cart"
+                      disabled={fetcher.state !== "idle"}
+                      onClick={openCart}
+                    >
+                      <ShoppingBagIcon />
+                    </button>
+                    {getCartError(fetcher) && (
+                      <p className="product-action-error" role="alert">
+                        {getCartError(fetcher)}
+                      </p>
+                    )}
+                  </>
+                )}
+              </CartForm>
+            </div>
           )}
         </div>
       </div>

@@ -85,6 +85,12 @@ button {
   font: inherit;
 }
 
+.icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
 .site-shell {
   width: var(--site-width);
   margin: 0 auto;
@@ -1455,6 +1461,18 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
   text-transform: uppercase;
 }
 
+.product-utility button.icon-button,
+.product-actions .product-action-icon,
+.button-primary.product-action-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .product-actions .product-action {
   cursor: pointer;
 }
@@ -1470,7 +1488,16 @@ html[data-theme="warm"] .hero-copy .button-inline:hover {
 }
 
 .product-utility-compact button {
-  padding: 7px 9px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+}
+
+.product-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .product-actions {

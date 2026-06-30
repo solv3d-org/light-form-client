@@ -8,6 +8,7 @@ const FEATURED_COUNT = 12;
 const MONEY_FORMATTER_CACHE = new Map();
 const DEFAULT_COLLECTION_HANDLE = "all";
 const DEFAULT_HOME_COLLECTION_HANDLE = "frontpage";
+const DEFAULT_CATEGORY_MENU_HANDLE = "shop-categories";
 
 const MONEY_FRAGMENT = `#graphql
   fragment MoneyFields on MoneyV2 {
@@ -198,6 +199,27 @@ const COLLECTION_PRODUCTS_QUERY = `#graphql
     }
   }
   ${PRODUCT_CARD_FRAGMENT}
+`;
+
+const CATEGORY_MENU_QUERY = `#graphql
+  query CategoryMenu($handle: String!) {
+    menu(handle: $handle) {
+      handle
+      title
+      items {
+        id
+        title
+        type
+        url
+        resource {
+          ... on Collection {
+            handle
+            title
+          }
+        }
+      }
+    }
+  }
 `;
 
 const PRODUCT_QUERY = `#graphql
@@ -451,6 +473,64 @@ function homeCollectionHandle(context) {
   return context.env?.PUBLIC_HOME_COLLECTION_HANDLE || DEFAULT_HOME_COLLECTION_HANDLE;
 }
 
+function categoryMenuHandle(context) {
+  return context.env?.PUBLIC_SHOP_CATEGORY_MENU_HANDLE || DEFAULT_CATEGORY_MENU_HANDLE;
+}
+
+function localCollectionHref(item) {
+  const handle = item.resource?.handle;
+  if (handle) return handle === DEFAULT_COLLECTION_HANDLE ? "/shop" : `/collections/${handle}`;
+  if (!item.url) return "";
+
+  try {
+    const path = new URL(item.url).pathname;
+    if (path === "/collections/all") return "/shop";
+    if (path.startsWith("/collections/")) return path;
+    return "";
+  } catch {
+    return item.url.startsWith("/collections/") ? item.url : "";
+  }
+}
+
+function collectionHandleFromHref(href) {
+  if (href === "/shop") return "";
+  const match = href.match(/^\/collections\/([^/?#]+)/);
+  return match?.[1] || "";
+}
+
+function normalizeCategoryMenuItem(item) {
+  const href = localCollectionHref(item);
+  if (!href) return null;
+  return {
+    id: item.id || href,
+    title: item.title || item.resource?.title || href,
+    handle: item.resource?.handle || collectionHandleFromHref(href),
+    href
+  };
+}
+
+async function loadCategoryRail(context) {
+  try {
+    const handle = categoryMenuHandle(context);
+    const data = await context.storefront.query(CATEGORY_MENU_QUERY, {
+      cache: context.storefront.CacheShort(),
+      variables: { handle }
+    });
+    const items = (data.menu?.items || []).map(normalizeCategoryMenuItem).filter(Boolean);
+    return {
+      handle,
+      source: data.menu ? "shopify-menu" : "missing-menu",
+      items
+    };
+  } catch {
+    return {
+      handle: categoryMenuHandle(context),
+      source: "unavailable",
+      items: []
+    };
+  }
+}
+
 function normalizeProductConnection(connection, context) {
   const products = connection?.nodes || [];
   return {
@@ -466,6 +546,7 @@ export async function loadCollectionCatalog(context, request, collectionHandleOv
   const filters = readShopFilters(request);
   const paginationVariables = getPaginationVariables(request, { pageBy: SHOP_PAGE_SIZE });
   const handle = collectionHandleOverride || collectionHandle(context);
+  const categoryRailPromise = loadCategoryRail(context);
 
   if (filters.search) {
     const productsData = await context.storefront.query(PRODUCTS_QUERY, {
@@ -491,6 +572,7 @@ export async function loadCollectionCatalog(context, request, collectionHandleOv
         sourceLabel: "Shopify search",
         mode: "shopify-search",
         collection: { handle, search: filters.search },
+        categoryRail: await categoryRailPromise,
         filters,
         syncedAt: now.toISOString(),
         syncedLabel: new Intl.DateTimeFormat("en-SG", {
@@ -540,6 +622,7 @@ export async function loadCollectionCatalog(context, request, collectionHandleOv
         sourceLabel: "Shopify catalog",
         mode: "shopify-products",
         collection: { handle, missing: true },
+        categoryRail: await categoryRailPromise,
         filters,
         syncedAt: now.toISOString(),
         syncedLabel: new Intl.DateTimeFormat("en-SG", {
@@ -565,6 +648,7 @@ export async function loadCollectionCatalog(context, request, collectionHandleOv
       sourceLabel: data.collection.title || "Shopify collection",
       mode: "shopify-collection",
       collection: { id: data.collection.id, handle: data.collection.handle, title: data.collection.title },
+      categoryRail: await categoryRailPromise,
       filters,
       syncedAt: now.toISOString(),
       syncedLabel: new Intl.DateTimeFormat("en-SG", {
