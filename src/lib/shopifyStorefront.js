@@ -4,6 +4,7 @@ import { getShopifyProductUrl } from "./shopifyConfig";
 const SHOP_PAGE_SIZE = 24;
 const HOME_PRODUCT_LIMIT = 100;
 const CATALOG_PRODUCT_LIMIT = 100;
+const CATEGORY_COLLECTION_LIMIT = 50;
 const FEATURED_COUNT = 12;
 const MONEY_FORMATTER_CACHE = new Map();
 const DEFAULT_COLLECTION_HANDLE = "all";
@@ -217,6 +218,18 @@ const CATEGORY_MENU_QUERY = `#graphql
             title
           }
         }
+      }
+    }
+  }
+`;
+
+const CATEGORY_COLLECTIONS_QUERY = `#graphql
+  query CategoryCollections($first: Int!) {
+    collections(first: $first) {
+      nodes {
+        id
+        title
+        handle
       }
     }
   }
@@ -509,6 +522,29 @@ function normalizeCategoryMenuItem(item) {
   };
 }
 
+function normalizeCategoryCollection(collection, context) {
+  if (!collection?.handle) return null;
+  if (collection.handle === DEFAULT_COLLECTION_HANDLE || collection.handle === homeCollectionHandle(context)) return null;
+  return {
+    id: collection.id || collection.handle,
+    title: collection.title || collection.handle,
+    handle: collection.handle,
+    href: `/collections/${collection.handle}`
+  };
+}
+
+async function loadCategoryCollections(context, source) {
+  const data = await context.storefront.query(CATEGORY_COLLECTIONS_QUERY, {
+    cache: context.storefront.CacheShort(),
+    variables: { first: CATEGORY_COLLECTION_LIMIT }
+  });
+  return {
+    handle: categoryMenuHandle(context),
+    source,
+    items: (data.collections?.nodes || []).map((collection) => normalizeCategoryCollection(collection, context)).filter(Boolean)
+  };
+}
+
 async function loadCategoryRail(context) {
   try {
     const handle = categoryMenuHandle(context);
@@ -517,17 +553,22 @@ async function loadCategoryRail(context) {
       variables: { handle }
     });
     const items = (data.menu?.items || []).map(normalizeCategoryMenuItem).filter(Boolean);
+    if (!items.length) return loadCategoryCollections(context, data.menu ? "shopify-collections-empty-menu" : "shopify-collections-missing-menu");
     return {
       handle,
       source: data.menu ? "shopify-menu" : "missing-menu",
       items
     };
   } catch {
-    return {
-      handle: categoryMenuHandle(context),
-      source: "unavailable",
-      items: []
-    };
+    try {
+      return await loadCategoryCollections(context, "shopify-collections-menu-unavailable");
+    } catch {
+      return {
+        handle: categoryMenuHandle(context),
+        source: "unavailable",
+        items: []
+      };
+    }
   }
 }
 

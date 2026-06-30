@@ -1,7 +1,6 @@
 import { Pagination } from "@shopify/hydrogen";
 import BrandRail from "../components/BrandRail";
 import ProductCard from "../components/ProductCard";
-import { legacyProductCategories } from "../data/legacyContent";
 
 const sortOptions = [
   ["manual", "Featured"],
@@ -93,12 +92,8 @@ export default function ShopPage({ products, productConnection, availableFilters
   const filters = catalogMetadata?.filters || {};
   const connection = productConnection || { nodes: products, pageInfo: {} };
   const collection = catalogMetadata?.collection || {};
-  const fallbackCategories = legacyProductCategories.map((category) => ({
-    ...category,
-    href: `/collections/${category.handle}`
-  }));
   const categoryRailItems = (catalogMetadata?.categoryRail?.items || []).filter((category) => category.href !== "/shop");
-  const categories = categoryRailItems.length ? categoryRailItems : fallbackCategories;
+  const categories = categoryRailItems;
   const activeCategoryHandle = categories.some((category) => category.handle === collection.handle) ? collection.handle : "";
 
   return (
